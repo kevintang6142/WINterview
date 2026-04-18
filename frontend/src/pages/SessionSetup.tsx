@@ -4,7 +4,7 @@ import { api } from '../api'
 import { useMastery, MasteryState } from '../mastery'
 import MasteryDropdown from '../components/MasteryDropdown'
 import CompanyAutocomplete from '../components/CompanyAutocomplete'
-import { main, card, stack, spread, row, muted, tag, btnPrimary, btnGhost } from '../lib/ui'
+import { main, card, stack, row, muted, tag, btnPrimary, btnGhost } from '../lib/ui'
 import { Question, SessionMode } from '../types'
 
 const ALL_CATEGORIES = [
@@ -20,6 +20,7 @@ const ALL_CATEGORIES = [
 ]
 
 type MasteryFilter = Set<MasteryState>
+type PickSortMode = 'text' | 'category'
 const ALL_MASTERY: MasteryState[] = ['none', 'in-progress', 'mastered']
 const MASTERY_LABEL: Record<MasteryState, string> = { 'none': 'Not started', 'in-progress': 'In progress', 'mastered': 'Mastered' }
 const SS_KEY = 'winterview.setup.state'
@@ -38,6 +39,7 @@ function loadSetupState(preselect?: string) {
       pickQ: s.pickQ ?? '',
       pickCats: new Set<string>(s.pickCats ?? ALL_CATEGORIES),
       pickMastery: new Set<MasteryState>(s.pickMastery ?? []),
+      pickSort: (s.pickSort ?? 'text') as PickSortMode,
       company: typeof s.company === 'string' ? s.company : '',
     }
   } catch { return null }
@@ -58,6 +60,7 @@ export default function SessionSetup() {
   const [pickQ, setPickQ] = useState(saved?.pickQ ?? '')
   const [pickCats, setPickCats] = useState<Set<string>>(saved?.pickCats ?? new Set(ALL_CATEGORIES))
   const [pickMastery, setPickMastery] = useState<Set<MasteryState>>(saved?.pickMastery ?? new Set())
+  const [pickSort, setPickSort] = useState<PickSortMode>(saved?.pickSort ?? 'text')
   const [company, setCompany] = useState(saved?.company ?? '')
   const [companyBusy, setCompanyBusy] = useState(false)
   const [companyInfo, setCompanyInfo] = useState<{ mode: SessionMode; categories: string[]; reason: string | null } | null>(null)
@@ -102,9 +105,10 @@ export default function SessionSetup() {
       pickQ,
       pickCats: [...pickCats],
       pickMastery: [...pickMastery],
+      pickSort,
       company,
     }))
-  }, [mode, count, randomCats, selected, pickQ, pickCats, pickMastery, company])
+  }, [mode, count, randomCats, selected, pickQ, pickCats, pickMastery, pickSort, company])
 
   const pickFiltered = useMemo(() => {
     let result = questions
@@ -114,8 +118,11 @@ export default function SessionSetup() {
       result = result.filter((it) => it.text.toLowerCase().includes(pickQ.trim().toLowerCase()))
     if (pickMastery.size > 0 && pickMastery.size < 3)
       result = result.filter((it) => pickMastery.has(getState(it.id)))
-    return result
-  }, [questions, pickQ, pickCats, pickMastery, masteryMap])
+    const copy = [...result]
+    if (pickSort === 'text') copy.sort((a, b) => a.text.localeCompare(b.text))
+    else copy.sort((a, b) => (a.category ?? '').localeCompare(b.category ?? ''))
+    return copy
+  }, [questions, pickQ, pickCats, pickMastery, pickSort, masteryMap])
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -225,23 +232,24 @@ export default function SessionSetup() {
         </div>
 
         {mode === 'selected' && (
-          <div className={card}>
-            <div className={`${spread} mb-2`}>
-              <strong>{selected.length} question{selected.length === 1 ? '' : 's'} selected <span className={muted}>(max 10)</span></strong>
-            </div>
-            <div className={`${stack} mb-3`}>
-              <CompanyFilterBlock
-                company={company}
-                setCompany={setCompany}
-                busy={companyBusy}
-                onApply={applyCompanyFilter}
-                info={companyInfo?.mode === 'selected' ? companyInfo : null}
-              />
-            </div>
-            {/* Search + category filter for pick mode */}
-            <div className={`${stack} mb-3`}>
+          <>
+            <div className={card}>
+              <h3 className="mt-0 mb-3">Filter questions</h3>
               <input placeholder="Filter by question text…" value={pickQ} onChange={(e) => setPickQ(e.target.value)} />
-              <div className="flex flex-wrap gap-1.5 items-center">
+
+              {/* Company filter */}
+              <div className="mt-3">
+                <CompanyFilterBlock
+                  company={company}
+                  setCompany={setCompany}
+                  busy={companyBusy}
+                  onApply={applyCompanyFilter}
+                  info={companyInfo?.mode === 'selected' ? companyInfo : null}
+                />
+              </div>
+
+              {/* Category chips */}
+              <div className="flex flex-wrap gap-1.5 items-center mt-3 pt-3 border-t border-skin-border">
                 {ALL_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
@@ -258,8 +266,9 @@ export default function SessionSetup() {
                 <button className={`${muted} text-xs underline`} onClick={() => setPickCats(new Set(ALL_CATEGORIES))}>All</button>
                 <button className={`${muted} text-xs underline`} onClick={() => setPickCats(new Set())}>None</button>
               </div>
-              {/* Mastery filter – multi-select */}
-              <div className={`${row} flex-wrap gap-1.5 items-center`}>
+
+              {/* Mastery filter */}
+              <div className={`${row} flex-wrap gap-1.5 items-center mt-3 pt-3 border-t border-skin-border`}>
                 <span className={`${muted} text-xs shrink-0`}>Mastery:</span>
                 {ALL_MASTERY.map((s) => (
                   <button
@@ -277,36 +286,69 @@ export default function SessionSetup() {
                 <button className={`${muted} text-xs underline`} onClick={() => setPickMastery(new Set(ALL_MASTERY))}>All</button>
                 <button className={`${muted} text-xs underline`} onClick={() => setPickMastery(new Set())}>None</button>
               </div>
+
+              {/* Sort controls */}
+              <div className={`${row} gap-2 mt-3 pt-3 border-t border-skin-border`}>
+                <span className={`${muted} text-xs shrink-0`}>Sort:</span>
+                {(['text', 'category'] as PickSortMode[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setPickSort(s)}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      pickSort === s
+                        ? 'bg-skin-accent text-white border-skin-accent'
+                        : 'border-skin-border text-skin-muted'
+                    }`}
+                  >
+                    {s === 'text' ? 'Question (A–Z)' : 'Category (A–Z)'}
+                  </button>
+                ))}
+              </div>
             </div>
+
             <div className={`${muted} text-sm`}>
               {pickFiltered.length} question{pickFiltered.length === 1 ? '' : 's'}{(pickCats.size < ALL_CATEGORIES.length || pickQ.trim() || (pickMastery.size > 0 && pickMastery.size < 3)) ? ' matching filters' : ''}
             </div>
-            <div className={`${stack} max-h-[420px] overflow-auto`}>
-              {pickFiltered.map((it) => (
-                <label
-                  key={it.id}
-                  className={`${row} p-2 border border-skin-border rounded-skin cursor-pointer ${selected.includes(it.id) ? 'bg-skin-surface-2' : 'bg-transparent'}`}
-                >
-                  <input type="checkbox" checked={selected.includes(it.id)} onChange={() => toggle(it.id)} style={{ width: 'auto' }} />
+
+            {pickFiltered.length === 0 && (
+              <div className={`${card} ${muted}`}>No questions match your filters.</div>
+            )}
+
+            {pickFiltered.map((it) => (
+              <div
+                key={it.id}
+                className={`${card} cursor-pointer ${selected.includes(it.id) ? 'ring-1 ring-skin-accent' : ''}`}
+                onClick={() => toggle(it.id)}
+              >
+                <div className={`${row} gap-3`}>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(it.id)}
+                    onChange={() => toggle(it.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ width: 'auto', flexShrink: 0 }}
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm">{it.text}</div>
+                    <div className="font-semibold mb-1.5">{it.text}</div>
                     <div className="flex gap-1.5 mt-1 flex-wrap items-center">
                       {it.category && <span className={tag}>{it.category}</span>}
                       <MasteryDropdown questionId={it.id} stopPropagation />
                     </div>
                   </div>
-                </label>
-              ))}
-              {pickFiltered.length === 0 && (
-                <div className={`${muted} text-sm`}>No questions match your filters.</div>
-              )}
-            </div>
-          </div>
+                </div>
+              </div>
+            ))}
+          </>
         )}
 
         {err && <div className={`${card} text-skin-danger`}>{err}</div>}
 
         <div>
+          {mode === 'selected' && (
+            <div className={`${muted} text-sm mb-2`}>
+              {selected.length} question{selected.length === 1 ? '' : 's'} selected <span className="text-xs">(max 10)</span>
+            </div>
+          )}
           <button
             className={btnPrimary}
             onClick={start}
