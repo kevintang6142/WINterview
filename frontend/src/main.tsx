@@ -6,6 +6,7 @@ import App from './App'
 import { ThemeProvider } from './theme'
 import { AuthProvider } from './auth'
 import { SettingsProvider } from './settings'
+import { MasteryProvider } from './mastery'
 import './styles.css'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <SettingsProvider>
           <AuthProvider>
             <BrowserRouter>
-              <App />
+              <MasteryProvider>
+                <App />
+              </MasteryProvider>
             </BrowserRouter>
           </AuthProvider>
         </SettingsProvider>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import PacingGraph from '../components/PacingGraph'
+import MasteryDropdown from '../components/MasteryDropdown'
 import { main, card, stack, spread, row, muted, tag, banner, bigQuestion, scorePill, metricRow, metricName, metricFb, metricScore, btnPrimary, btnDanger, btnGhost } from '../lib/ui'
 import { Evaluation, MetricData } from '../types'
 
@@ -20,8 +21,8 @@ function fmtDuration(seconds?: number) {
 }
 
 interface ResultItem {
-  id: string; question_text: string; transcript: string
-  duration_seconds?: number; is_public?: boolean; evaluation?: Evaluation
+  id: string; question_id?: string; question_text: string; question_category?: string
+  transcript: string; duration_seconds?: number; is_public?: boolean; evaluation?: Evaluation
 }
 
 export default function SessionResult() {
@@ -50,6 +51,7 @@ export default function SessionResult() {
   return (
     <div className={main}>
       <div className={stack}>
+        <Link to="/profile" className={`${btnGhost} self-start text-[13px]`}>← My profile</Link>
         <div className={banner}>
           This breakdown is <strong>private to you</strong>. Public shares only include your
           transcript and pacing data — never the AI scores or feedback.
@@ -61,6 +63,12 @@ export default function SessionResult() {
           return (
             <div key={r.id} className={card}>
               <div className={bigQuestion}>{r.question_text}</div>
+              {(r.question_category || r.question_id) && (
+                <div className="flex items-center gap-2 flex-wrap mt-2.5 mb-1">
+                  {r.question_category && <span className={tag}>{r.question_category}</span>}
+                  {r.question_id && <MasteryDropdown questionId={r.question_id} />}
+                </div>
+              )}
 
               <div className={spread}>
                 <div className={muted}>

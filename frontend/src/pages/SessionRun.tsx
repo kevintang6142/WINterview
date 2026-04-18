@@ -10,7 +10,7 @@ interface Segment { text: string; word_index: number }
 interface Alignment { words: WordTiming[]; segments: Segment[] }
 interface EvalResult {
   id: string; evaluation: any; transcript: string
-  duration_seconds: number; question_id: string; question_text: string
+  duration_seconds: number; question_id: string; question_text: string; question_category?: string
 }
 
 export default function SessionRun() {
@@ -161,7 +161,7 @@ export default function SessionRun() {
       duration_seconds: 0,
     }).then((saved: any) => ({
       id: saved.id, evaluation: saved.evaluation, transcript: text,
-      duration_seconds: 0, question_id: q.id, question_text: q.text,
+      duration_seconds: 0, question_id: q.id, question_text: q.text, question_category: q.category,
     }))
     evalPromise.catch(() => {})
     pendingEvalsRef.current.push(evalPromise)
@@ -183,7 +183,7 @@ export default function SessionRun() {
         session_id: id, question_id: q.id, transcript: text,
         duration_seconds: duration, word_timestamps: word_timestamps ?? [],
       })
-      return { id: saved.id, evaluation: saved.evaluation, transcript: text, duration_seconds: duration, question_id: q.id, question_text: q.text }
+      return { id: saved.id, evaluation: saved.evaluation, transcript: text, duration_seconds: duration, question_id: q.id, question_text: q.text, question_category: q.category }
     })()
     evalPromise.catch(() => {})
     pendingEvalsRef.current.push(evalPromise)

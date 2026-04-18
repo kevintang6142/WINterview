@@ -28,8 +28,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2.5">
           {user ? (
             <>
-              {user.picture && <img className={thumb} src={user.picture} alt="" />}
-              <span className="text-skin-muted text-[13px]">{user.name}</span>
+              <Link to="/profile" className="flex items-center gap-2 hover:no-underline">
+                {user.picture && <img className={thumb} src={user.picture} alt="" />}
+                <span className="text-skin-muted text-[13px]">{user.name}</span>
+              </Link>
               <button className={btnSmGhost} onClick={() => { logout(); navigate('/') }}>
                 Sign out
               </button>

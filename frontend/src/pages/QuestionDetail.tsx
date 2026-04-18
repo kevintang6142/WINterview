@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import ResponseCard from '../components/ResponseCard'
-import { main, card, stack, row, tag, muted, btnPrimary } from '../lib/ui'
+import MasteryDropdown from '../components/MasteryDropdown'
+import BackButton from '../components/BackButton'
+import { main, card, stack, tag, muted, btnPrimary } from '../lib/ui'
 import { Question, ResponseItem } from '../types'
 
 export default function QuestionDetail() {
@@ -20,11 +22,13 @@ export default function QuestionDetail() {
 
   return (
     <div className={main}>
+      <BackButton />
       <div className={stack}>
         <div className={card}>
           <div className="font-semibold text-lg mb-2">{q.text}</div>
-          <div className={row}>
+          <div className="flex items-center gap-2 flex-wrap">
             {q.tags?.map((t) => <span key={t} className={tag}>{t}</span>)}
+            {id && <MasteryDropdown questionId={id} />}
           </div>
         </div>
         <div>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { useMastery, MasteryState } from '../mastery'
+import MasteryDropdown from '../components/MasteryDropdown'
 import { main, card, stack, row, tag, muted } from '../lib/ui'
 import { Question } from '../types'
 
@@ -18,12 +20,41 @@ const ALL_CATEGORIES = [
 
 type SortMode = 'text' | 'category' | 'responses'
 
+const MASTERY_STATES: MasteryState[] = ['none', 'in-progress', 'mastered']
+const MASTERY_LABEL: Record<MasteryState, string> = { 'none': 'Not started', 'in-progress': 'In progress', 'mastered': 'Mastered' }
+
+const SS_KEY = 'winterview.search.state'
+
+function loadState() {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw)
+    return {
+      q: s.q ?? '',
+      selectedCats: new Set<string>(s.selectedCats ?? ALL_CATEGORIES),
+      sort: (s.sort ?? 'text') as SortMode,
+      selectedMastery: new Set<MasteryState>(s.selectedMastery ?? []),
+    }
+  } catch { return null }
+}
+
 export default function Search() {
-  const [q, setQ] = useState('')
-  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set(ALL_CATEGORIES))
-  const [sort, setSort] = useState<SortMode>('text')
+  const { getState, masteryMap } = useMastery()
+  const saved = loadState()
+  const [q, setQ] = useState(saved?.q ?? '')
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(saved?.selectedCats ?? new Set(ALL_CATEGORIES))
+  const [sort, setSort] = useState<SortMode>(saved?.sort ?? 'text')
+  const [selectedMastery, setSelectedMastery] = useState<Set<MasteryState>>(saved?.selectedMastery ?? new Set())
   const [items, setItems] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Persist state to sessionStorage on every change
+  useEffect(() => {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({
+      q, selectedCats: [...selectedCats], sort, selectedMastery: [...selectedMastery],
+    }))
+  }, [q, selectedCats, sort, selectedMastery])
 
   useEffect(() => {
     setLoading(true)
@@ -37,12 +68,14 @@ export default function Search() {
       result = result.filter((it) => it.category && selectedCats.has(it.category))
     if (q.trim())
       result = result.filter((it) => it.text.toLowerCase().includes(q.trim().toLowerCase()))
+    if (selectedMastery.size > 0 && selectedMastery.size < 3)
+      result = result.filter((it) => selectedMastery.has(getState(it.id)))
     const copy = [...result]
     if (sort === 'text') copy.sort((a, b) => a.text.localeCompare(b.text))
     else if (sort === 'category') copy.sort((a, b) => (a.category ?? '').localeCompare(b.category ?? ''))
     else copy.sort((a, b) => (b.public_response_count ?? 0) - (a.public_response_count ?? 0))
     return copy
-  }, [items, q, selectedCats, sort])
+  }, [items, q, selectedCats, sort, selectedMastery, masteryMap])
 
   const toggleCat = (cat: string) =>
     setSelectedCats((prev) => {
@@ -51,7 +84,14 @@ export default function Search() {
       return next
     })
 
-  const isFiltered = (selectedCats.size > 0 && selectedCats.size < ALL_CATEGORIES.length) || !!q.trim()
+  const toggleMastery = (s: MasteryState) =>
+    setSelectedMastery((prev) => {
+      const next = new Set(prev)
+      if (next.has(s)) next.delete(s); else next.add(s)
+      return next
+    })
+
+  const isFiltered = (selectedCats.size > 0 && selectedCats.size < ALL_CATEGORIES.length) || !!q.trim() || (selectedMastery.size > 0 && selectedMastery.size < 3)
 
   return (
     <div className={main}>
@@ -65,7 +105,7 @@ export default function Search() {
           />
 
           {/* Category chips */}
-          <div className="flex flex-wrap gap-1.5 mt-2.5">
+          <div className="flex flex-wrap gap-1.5 items-center mt-2.5">
             {ALL_CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -79,10 +119,28 @@ export default function Search() {
                 {cat}
               </button>
             ))}
-          </div>
-          <div className="flex gap-3 mt-2">
             <button className={`${muted} text-xs underline`} onClick={() => setSelectedCats(new Set(ALL_CATEGORIES))}>All</button>
             <button className={`${muted} text-xs underline`} onClick={() => setSelectedCats(new Set())}>None</button>
+          </div>
+
+          {/* Mastery filter – multi-select */}
+          <div className={`${row} flex-wrap gap-1.5 items-center mt-3 pt-3 border-t border-skin-border`}>
+            <span className={`${muted} text-xs shrink-0`}>Mastery:</span>
+            {MASTERY_STATES.map((s) => (
+              <button
+                key={s}
+                onClick={() => toggleMastery(s)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                  selectedMastery.has(s)
+                    ? 'bg-skin-accent text-white border-skin-accent'
+                    : 'border-skin-border text-skin-muted'
+                }`}
+              >
+                {MASTERY_LABEL[s]}
+              </button>
+            ))}
+            <button className={`${muted} text-xs underline`} onClick={() => setSelectedMastery(new Set(MASTERY_STATES))}>All</button>
+            <button className={`${muted} text-xs underline`} onClick={() => setSelectedMastery(new Set())}>None</button>
           </div>
 
           {/* Sort controls */}
@@ -113,18 +171,19 @@ export default function Search() {
         )}
 
         {filtered.map((it) => (
-          <Link to={`/question/${it.id}`} key={it.id} className="text-skin-text hover:no-underline block">
-            <div className={`${card} cursor-pointer`}>
+          <div key={it.id} className={card}>
+            <Link to={`/question/${it.id}`} className="text-skin-text hover:no-underline block">
               <div className="font-semibold mb-1.5">{it.text}</div>
-              <div className={`${row} mt-2`}>
-                {it.category && <span className={tag}>{it.category}</span>}
-                <span className={`${muted} ml-auto`}>
-                  {it.public_response_count} response{it.public_response_count === 1 ? '' : 's'}
-                  {it.avg_rating != null ? ` · ⭐ ${it.avg_rating.toFixed(1)}` : ''}
-                </span>
-              </div>
+            </Link>
+            <div className={`flex items-center flex-wrap gap-1.5 mt-2`}>
+              {it.category && <span className={tag}>{it.category}</span>}
+              <MasteryDropdown questionId={it.id} />
+              <span className={`${muted} ml-auto`}>
+                {it.public_response_count} response{it.public_response_count === 1 ? '' : 's'}
+                {it.avg_rating != null ? ` · ⭐ ${it.avg_rating.toFixed(1)}` : ''}
+              </span>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </div>

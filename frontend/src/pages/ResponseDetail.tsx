@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import PacingGraph from '../components/PacingGraph'
-import { main, card, stack, row, muted, tag, bigQuestion, metricRow, metricName, metricFb, metricScore, btnPrimary, btnSmGhost, btnDanger } from '../lib/ui'
+import MasteryDropdown from '../components/MasteryDropdown'
+import BackButton from '../components/BackButton'
+import { main, card, stack, row, muted, tag, bigQuestion, metricRow, metricName, metricFb, metricScore, btnPrimary, btnSmGhost, btnDanger, btnGhost } from '../lib/ui'
 import { CategoryRating, Comment, Evaluation, MetricData } from '../types'
 
 const METRICS: [keyof Evaluation, string][] = [
@@ -51,16 +53,22 @@ function fmtDuration(seconds?: number) {
 function CategoryRatingForm({
   myRating,
   onRate,
+  onDelete,
   disabled,
 }: {
   myRating?: CategoryRating | null
   onRate: (r: CategoryRating) => void
+  onDelete: () => void
   disabled?: boolean
 }) {
   const empty: CategoryRating = { structure_star: 0, specificity_depth: 0, delivery_pacing: 0, relevance: 0, reflection: 0 }
+  const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState<CategoryRating>(myRating ?? empty)
 
-  useEffect(() => { if (myRating) setDraft(myRating) }, [myRating])
+  useEffect(() => {
+    if (myRating) setDraft(myRating)
+    else setDraft(empty)
+  }, [myRating])
 
   const setScore = (key: keyof CategoryRating, val: number) =>
     setDraft((d) => ({ ...d, [key]: val }))
@@ -71,40 +79,52 @@ function CategoryRatingForm({
 
   return (
     <div className={stack}>
-      <h4 className="m-0">Rate this response</h4>
-      {RATING_CATEGORIES.map(({ key, label, guide }) => (
-        <div key={key}>
-          <div className="flex items-center justify-between mb-0.5">
-            <span className="text-sm font-medium">{label}</span>
-            <span className={`${muted} text-xs`}>{draft[key] > 0 ? `${draft[key]}/5` : ''}</span>
-          </div>
-          <div className={`${muted} text-xs mb-1.5`}>{guide}</div>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => setScore(key, n)}
-                className={`w-9 h-9 rounded text-sm font-semibold border transition-colors ${
-                  draft[key] >= n
-                    ? 'bg-skin-accent text-white border-skin-accent'
-                    : 'border-skin-border text-skin-muted hover:border-skin-accent'
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-      <div>
-        <button
-          className={btnPrimary}
-          disabled={!allFilled}
-          onClick={() => onRate(draft)}
-        >
-          {myRating ? 'Update rating' : 'Submit rating'}
+      <div className={`${row} gap-2`}>
+        <button className={btnSmGhost} onClick={() => setShowForm((s) => !s)}>
+          {showForm ? 'Cancel' : myRating ? 'Edit review' : 'Add review'}
         </button>
+        {myRating && !showForm && (
+          <button className={btnDanger} onClick={onDelete}>Delete review</button>
+        )}
       </div>
+
+      {showForm && (
+        <>
+          {RATING_CATEGORIES.map(({ key, label, guide }) => (
+            <div key={key}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-sm font-medium">{label}</span>
+                <span className={`${muted} text-xs`}>{draft[key] > 0 ? `${draft[key]}/5` : ''}</span>
+              </div>
+              <div className={`${muted} text-xs mb-1.5`}>{guide}</div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setScore(key, n)}
+                    className={`w-9 h-9 rounded text-sm font-semibold border transition-colors ${
+                      draft[key] >= n
+                        ? 'bg-skin-accent text-white border-skin-accent'
+                        : 'border-skin-border text-skin-muted hover:border-skin-accent'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <button
+              className={btnPrimary}
+              disabled={!allFilled}
+              onClick={() => { onRate(draft); setShowForm(false) }}
+            >
+              {myRating ? 'Update review' : 'Submit review'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -150,7 +170,7 @@ function CommentVotes({ commentId, initialLike = 0, initialDislike = 0, initialM
   }
   const score = counts.like - counts.dislike
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex flex-col items-center gap-0.5">
       <VoteButton direction="up" active={counts.mine === 1} count={counts.like} onClick={() => send(1)} />
       <span className={`text-xs font-semibold w-6 text-center ${score > 0 ? 'text-orange-500' : score < 0 ? 'text-blue-500' : muted}`}>
         {score}
@@ -161,7 +181,8 @@ function CommentVotes({ commentId, initialLike = 0, initialDislike = 0, initialM
 }
 
 interface ResponseData {
-  question_text: string; is_public: boolean; is_owner: boolean; transcript: string
+  question_id?: string; question_text: string; question_category?: string
+  is_public: boolean; is_owner: boolean; transcript: string
   duration_seconds?: number; created_at?: string
   avg_rating?: number | null; rating_count?: number
   my_rating?: CategoryRating | null; evaluation?: Evaluation
@@ -187,6 +208,16 @@ export default function ResponseDetail() {
     setData((d) => d ? { ...d, avg_rating: r.avg_rating, rating_count: r.rating_count, my_rating: rating } : null)
   }
 
+  const deleteRating = async () => {
+    if (!confirm('Delete your review? This cannot be undone.')) return
+    try {
+      const r = await api.delete(`/responses/${id}/rate`)
+      setData((d) => d ? { ...d, avg_rating: r.avg_rating, rating_count: r.rating_count, my_rating: null } : null)
+    } catch (e: any) {
+      alert(`Failed to delete review: ${e.message}`)
+    }
+  }
+
   const togglePublic = async () => {
     if (!data) return
     await api.post(`/responses/${id}/public`, { is_public: !data.is_public })
@@ -206,6 +237,12 @@ export default function ResponseDetail() {
     setDraft(''); load()
   }
 
+  const deleteComment = async (commentId: string) => {
+    if (!confirm('Delete your comment?')) return
+    await api.delete(`/responses/comments/${commentId}`)
+    setComments((cs) => cs.filter((c) => c.id !== commentId))
+  }
+
   if (!data) return <div className={main}><div className={card}>Loading…</div></div>
 
   const ev = data.evaluation || {}
@@ -214,10 +251,17 @@ export default function ResponseDetail() {
 
   return (
     <div className={main}>
+      <BackButton />
       <div className={stack}>
         <div className={card}>
           <div className={bigQuestion}>{data.question_text}</div>
-          <div className={`${row} flex-wrap gap-x-3 ${muted}`}>
+          {(data.question_category || data.question_id) && (
+            <div className="flex items-center gap-2 flex-wrap mt-2.5">
+              {data.question_category && <span className={tag}>{data.question_category}</span>}
+              {data.question_id && <MasteryDropdown questionId={data.question_id} />}
+            </div>
+          )}
+          <div className={`${row} flex-wrap gap-x-3 ${muted} mt-2.5`}>
             <span>{data.is_public ? 'Public' : 'Private'}</span>
             <span>Time: <strong>{fmtDuration(data.duration_seconds || ev.duration_seconds)}</strong></span>
             {ev.word_count != null && <span>Words: <strong>{ev.word_count}</strong></span>}
@@ -267,14 +311,18 @@ export default function ResponseDetail() {
         {data.is_public && (
           <div className={card}>
             {data.avg_rating != null && (
-              <div className={`${muted} mb-4`}>
+              <div className={`${muted} mb-2`}>
                 Community rating: <strong>{data.avg_rating.toFixed(1)}/5</strong>
                 {data.rating_count ? ` (${data.rating_count} rating${data.rating_count === 1 ? '' : 's'})` : ''}
               </div>
             )}
+            {data.my_rating && (() => {
+              const avg = (data.my_rating.structure_star + data.my_rating.specificity_depth + data.my_rating.delivery_pacing + data.my_rating.relevance + data.my_rating.reflection) / 5
+              return <div className={`${muted} text-sm mb-4`}>Your review: <strong>{avg.toFixed(1)}/5</strong></div>
+            })()}
 
             {!isOwner && (
-              <CategoryRatingForm myRating={data.my_rating} onRate={rate} />
+              <CategoryRatingForm myRating={data.my_rating} onRate={rate} onDelete={deleteRating} />
             )}
             {isOwner && (
               <div className={`${muted} text-sm`}>You cannot rate your own response.</div>
@@ -317,10 +365,23 @@ export default function ResponseDetail() {
                         <div className={row}>
                           {c.user_picture && <img className="w-6 h-6 rounded-full object-cover" src={c.user_picture} alt="" />}
                           <strong className="text-sm">{c.user_name}</strong>
+                          {c.user_karma != null && (
+                            <span className={`${muted} text-xs`}>{c.user_karma} karma</span>
+                          )}
                           {isOwn && <span className={`${tag} text-xs`}>you</span>}
                           <span className={`${muted} ml-auto text-xs`}>{new Date(c.created_at).toLocaleString()}</span>
                         </div>
                         <p className="mt-1.5 mb-0 text-sm">{c.body}</p>
+                        {isOwn && (
+                          <div className="flex justify-end mt-2">
+                            <button
+                              className={btnDanger}
+                              onClick={() => deleteComment(c.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

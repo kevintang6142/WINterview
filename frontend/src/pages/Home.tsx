@@ -30,6 +30,22 @@ export default function Home() {
       .finally(() => setLoading(false))
   }, [sort, timeRange])
 
+  const togglePublic = async (id: string, current: boolean) => {
+    await api.post(`/responses/${id}/public`, { is_public: !current })
+    if (current) {
+      // Making private — remove from the public feed
+      setItems((arr) => arr.filter((r) => r.id !== id))
+    } else {
+      setItems((arr) => arr.map((r) => r.id === id ? { ...r, is_public: true } : r))
+    }
+  }
+
+  const deleteResponse = async (id: string) => {
+    if (!confirm('Delete this response? This cannot be undone.')) return
+    await api.delete(`/responses/${id}`)
+    setItems((arr) => arr.filter((r) => r.id !== id))
+  }
+
   return (
     <div className={mainSidebar}>
       <div className={stack}>
@@ -69,7 +85,14 @@ export default function Home() {
             toggle your response to public from the results page.
           </div>
         )}
-        {items.map((item) => <ResponseCard key={item.id} item={item} />)}
+        {items.map((item) => (
+          <ResponseCard
+            key={item.id}
+            item={item}
+            onTogglePublic={item.is_owner ? togglePublic : undefined}
+            onDelete={item.is_owner ? deleteResponse : undefined}
+          />
+        ))}
       </div>
 
       <aside className={sidebar}>

@@ -41,11 +41,14 @@ export interface Evaluation {
 
 export interface ResponseItem {
   id: string
+  question_id?: string
   question_text: string
+  question_category?: string
   transcript_preview?: string
   transcript?: string
   avg_rating?: number | null
   rating_count?: number
+  comment_count?: number
   words_per_minute?: number
   filler_count?: number
   is_public?: boolean
@@ -74,6 +77,7 @@ export interface Comment {
   user_id: string
   user_name: string
   user_picture?: string
+  user_karma?: number
   body: string
   created_at: string
   like_count: number

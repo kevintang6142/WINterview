@@ -112,6 +112,11 @@ class CommentCreate(BaseModel):
     body: str
 
 
+class MasterySet(BaseModel):
+    question_id: str
+    state: str  # 'none' | 'in-progress' | 'mastered'
+
+
 class Comment(MongoBase):
     id: str = Field(alias="_id")
     response_id: str

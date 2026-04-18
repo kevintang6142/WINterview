@@ -53,6 +53,7 @@ async def feed(
     limit: int = Query(30, le=100),
     sort: str = Query("hot", pattern="^(new|top|hot)$"),
     time_range: str = Query("all", pattern="^(now|today|week|month|year|all)$"),
+    user: dict | None = Depends(optional_user),
 ):
     db = get_db()
     from datetime import timedelta
@@ -106,16 +107,21 @@ async def feed(
     for r in docs:
         q = await db.questions.find_one({"_id": ObjectId(r["question_id"])})
         ev = r.get("evaluation") or {}
+        comment_count = await db.comments.count_documents({"response_id": str(r["_id"])})
         out.append(
             {
                 "id": str(r["_id"]),
                 "question_id": r["question_id"],
                 "question_text": q["text"] if q else "",
+                "question_category": q.get("category", "") if q else "",
                 "transcript_preview": r["transcript"][:240],
                 "words_per_minute": ev.get("words_per_minute"),
                 "filler_count": ev.get("filler_count"),
                 "avg_rating": r.get("avg_rating"),
                 "rating_count": r.get("rating_count", 0),
+                "comment_count": comment_count,
+                "is_owner": user is not None and user["_id"] == r["user_id"],
+                "is_public": r.get("is_public", True),
                 "created_at": r["created_at"],
             }
         )
@@ -168,6 +174,7 @@ async def get_response(
         "id": str(r["_id"]),
         "question_id": r["question_id"],
         "question_text": q["text"] if q else "",
+        "question_category": q.get("category", "") if q else "",
         "transcript": r["transcript"],
         "duration_seconds": r.get("duration_seconds", 0),
         "evaluation": evaluation,
@@ -254,12 +261,22 @@ async def list_comments(
             }
         ):
             my_by_target[r["target_id"]] = r["value"]
+    # Batch fetch commenter karma
+    unique_user_ids = list({c["user_id"] for c in comments})
+    karma_by_user: dict[str, int] = {}
+    if unique_user_ids:
+        async for u in db.users.find(
+            {"_id": {"$in": [ObjectId(uid) for uid in unique_user_ids]}},
+            {"_id": 1, "karma": 1},
+        ):
+            karma_by_user[str(u["_id"])] = u.get("karma", 0)
     return [
         {
             "id": str(c["_id"]),
             "user_id": c["user_id"],
             "user_name": c.get("user_name", "Anonymous"),
             "user_picture": c.get("user_picture"),
+            "user_karma": karma_by_user.get(c["user_id"], 0),
             "body": c["body"],
             "like_count": c.get("like_count", 0),
             "dislike_count": c.get("dislike_count", 0),
@@ -301,6 +318,39 @@ async def add_comment(
     return {"id": comment_id, **{k: v for k, v in doc.items() if k != "_id"}}
 
 
+@router.delete("/comments/{comment_id}")
+async def delete_comment(comment_id: str, user: dict = Depends(current_user)):
+    db = get_db()
+    c = await db.comments.find_one({"_id": ObjectId(comment_id)})
+    if not c:
+        raise HTTPException(404, "Not found")
+    if c["user_id"] != user["_id"]:
+        raise HTTPException(403, "Not your comment")
+    # Remove reactions then the comment
+    await db.reactions.delete_many({"target_type": "comment", "target_id": comment_id})
+    await db.comments.delete_one({"_id": ObjectId(comment_id)})
+    # Recompute commenter's karma without this comment
+    remaining = [
+        str(cc["_id"])
+        async for cc in db.comments.find({"user_id": c["user_id"]}, {"_id": 1})
+    ]
+    if remaining:
+        karma_agg = [
+            a
+            async for a in db.reactions.aggregate([
+                {"$match": {"target_type": "comment", "target_id": {"$in": remaining}}},
+                {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
+            ])
+        ]
+        karma = karma_agg[0]["karma"] if karma_agg else 0
+    else:
+        karma = 0
+    await db.users.update_one(
+        {"_id": ObjectId(c["user_id"])}, {"$set": {"karma": karma}}
+    )
+    return {"ok": True}
+
+
 # ---------- Ratings ----------
 @router.post("/{response_id}/rate")
 async def rate_response(
@@ -335,6 +385,29 @@ async def rate_response(
     )
 
     # Recompute aggregates across all raters
+    pipeline = [
+        {"$match": {"response_id": response_id}},
+        {"$group": {"_id": None, "avg": {"$avg": "$avg"}, "count": {"$sum": 1}}},
+    ]
+    agg = [a async for a in db.ratings.aggregate(pipeline)]
+    avg = round(agg[0]["avg"], 2) if agg else None
+    count = agg[0]["count"] if agg else 0
+    await db.responses.update_one(
+        {"_id": ObjectId(response_id)},
+        {"$set": {"avg_rating": avg, "rating_count": count}},
+    )
+    return {"ok": True, "avg_rating": avg, "rating_count": count}
+
+
+@router.delete("/{response_id}/rate")
+async def delete_rating(response_id: str, user: dict = Depends(current_user)):
+    db = get_db()
+    r = await db.responses.find_one({"_id": ObjectId(response_id)})
+    if not r or not r.get("is_public"):
+        raise HTTPException(404, "Not found")
+    if r["user_id"] == user["_id"]:
+        raise HTTPException(400, "Can't rate your own response")
+    await db.ratings.delete_one({"response_id": response_id, "user_id": user["_id"]})
     pipeline = [
         {"$match": {"response_id": response_id}},
         {"$group": {"_id": None, "avg": {"$avg": "$avg"}, "count": {"$sum": 1}}},
@@ -392,29 +465,28 @@ async def react_comment(
         raise HTTPException(404, "Not found")
     await _apply_comment_reaction(db, comment_id, user["_id"], body.value)
     # Karma for the comment author = net votes across all their comments.
-    if c["user_id"] != user["_id"]:
-        author_comments = [
-            str(cc["_id"])
-            async for cc in db.comments.find({"user_id": c["user_id"]}, {"_id": 1})
-        ]
-        karma_agg = [
-            a
-            async for a in db.reactions.aggregate(
-                [
-                    {
-                        "$match": {
-                            "target_type": "comment",
-                            "target_id": {"$in": author_comments},
-                        }
-                    },
-                    {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
-                ]
-            )
-        ]
-        karma = karma_agg[0]["karma"] if karma_agg else 0
-        await db.users.update_one(
-            {"_id": ObjectId(c["user_id"])}, {"$set": {"karma": karma}}
+    author_comments = [
+        str(cc["_id"])
+        async for cc in db.comments.find({"user_id": c["user_id"]}, {"_id": 1})
+    ]
+    karma_agg = [
+        a
+        async for a in db.reactions.aggregate(
+            [
+                {
+                    "$match": {
+                        "target_type": "comment",
+                        "target_id": {"$in": author_comments},
+                    }
+                },
+                {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
+            ]
         )
+    ]
+    karma = karma_agg[0]["karma"] if karma_agg else 0
+    await db.users.update_one(
+        {"_id": ObjectId(c["user_id"])}, {"$set": {"karma": karma}}
+    )
     doc = await db.comments.find_one({"_id": ObjectId(comment_id)})
     return {
         "like_count": doc.get("like_count", 0),

@@ -50,7 +50,7 @@ async def create_session(body: SessionCreate, user: dict = Depends(current_user)
         "id": str(res.inserted_id),
         "mode": body.mode,
         "questions": [
-            {"id": str(d["_id"]), "text": d["text"], "tags": d.get("tags", [])}
+            {"id": str(d["_id"]), "text": d["text"], "tags": d.get("tags", []), "category": d.get("category", "")}
             for d in docs
         ],
     }
