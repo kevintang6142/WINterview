@@ -22,8 +22,8 @@ export default function PacingGraph({ timeline = [], durationSeconds = 0 }: Prop
   const BAR_GAP = 2
 
   const n = timeline.length
-  if (n === 0 || durationSeconds < WINDOW) {
-    return <div className="text-skin-muted text-sm">No pacing data (response too short).</div>
+  if (n === 0) {
+    return <div className="text-skin-muted text-sm">No pacing data.</div>
   }
 
   const maxWpm = Math.max(60, ...timeline) * 1.1

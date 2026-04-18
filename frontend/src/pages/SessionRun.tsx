@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useSettings } from '../settings'
-import { main, card, stack, muted, spinner, ttsWord, ttsActive, btnPrimary, btnGhost } from '../lib/ui'
+import { main, card, stack, muted, tag, spinner, ttsWord, ttsActive, btnPrimary, btnGhost } from '../lib/ui'
 import { Session, SessionPhase } from '../types'
 
 interface WordTiming { start: number; end: number; word: string }
@@ -276,7 +276,8 @@ export default function SessionRun() {
       <div className={stack}>
         <div className={card}>
           <div className={`${muted} mb-1`}>Question {qIndex + 1} of {session.questions.length}</div>
-          <div className="text-lg font-semibold leading-snug mb-4">{questionNode}</div>
+          <div className="text-lg font-semibold leading-snug mb-2">{questionNode}</div>
+          {current?.category && <div className="mb-4"><span className={tag}>{current.category}</span></div>}
 
           {phase === 'countdown' ? (
             <div className="text-center py-8">

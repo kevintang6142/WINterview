@@ -35,8 +35,6 @@ export default function ResponseCard({ item, onTogglePublic, onDelete }: Props) 
       <div className={`${row} flex-wrap gap-3.5 mt-2.5 ${muted}`}>
         <span>⭐ {rating != null ? rating.toFixed(1) : '—'}{rc ? ` (${rc})` : ''}</span>
         <span>💬 {cc}</span>
-        {item.words_per_minute != null && <span>{Math.round(item.words_per_minute)} WPM</span>}
-        {item.filler_count != null && <span>{item.filler_count} fillers</span>}
         {showActions && (
           <div className="ml-auto flex gap-2">
             {onTogglePublic && (

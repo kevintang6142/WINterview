@@ -111,21 +111,25 @@ def analyze_pacing(transcript: str, duration_seconds: float, word_timestamps: li
     # word_timestamps: [{"text": str, "start": float, "end": float}, ...]
     real_words = [w for w in (word_timestamps or []) if isinstance(w.get("start"), (int, float)) and isinstance(w.get("end"), (int, float))]
 
-    if real_words and duration >= WINDOW:
+    if real_words:
         n_buckets = int(duration // WINDOW)
         remainder = duration - n_buckets * WINDOW
         bucket_count = n_buckets + (1 if remainder >= 1.0 else 0)
+        # If the whole response fits in one partial bucket, treat it as one bucket
+        if bucket_count == 0:
+            bucket_count = 1
+            n_buckets = 0
+            remainder = duration
         for i in range(bucket_count):
             t0 = i * WINDOW
             t1 = t0 + (WINDOW if i < n_buckets else remainder)
-            # Count words whose midpoint falls inside this bucket
             count_in = sum(
                 1 for w in real_words
                 if t0 <= (w["start"] + w["end"]) / 2.0 < t1
             )
             bucket_dur = t1 - t0
             timeline.append(round(count_in / (bucket_dur / 60.0), 1))
-    elif duration >= WINDOW and word_count > 0:
+    elif word_count > 0:
         # Fallback: uniform distribution (no timestamp data)
         n_buckets = int(duration // WINDOW)
         wps = word_count / duration
@@ -134,6 +138,9 @@ def analyze_pacing(transcript: str, duration_seconds: float, word_timestamps: li
         remainder = duration - n_buckets * WINDOW
         if remainder >= 1.0:
             timeline.append(round(wps * remainder / (remainder / 60.0), 1))
+        # If entire response is shorter than one window, emit a single bucket
+        if not timeline:
+            timeline.append(round(wpm, 1))
 
     return {
         "filler_count": filler_count,
