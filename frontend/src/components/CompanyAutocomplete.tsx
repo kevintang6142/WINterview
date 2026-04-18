@@ -1,70 +1,54 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { autocomplete, autocompleteItem } from '../lib/ui'
 
-/**
- * Free-form company input with debounced Brave-backed suggestions.
- * The user can always type anything — suggestions are a convenience,
- * not a required selection.
- */
-export default function CompanyAutocomplete({ value, onChange, placeholder }) {
-  const [suggestions, setSuggestions] = useState([])
+interface Props {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}
+
+export default function CompanyAutocomplete({ value, onChange, placeholder }: Props) {
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const wrapRef = useRef(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const latestQueryRef = useRef('')
 
   useEffect(() => {
     const q = (value || '').trim()
-    if (q.length < 1) {
-      setSuggestions([])
-      return
-    }
+    if (q.length < 1) { setSuggestions([]); return }
     latestQueryRef.current = q
     const handle = setTimeout(async () => {
       try {
         const res = await api.get(`/suggest/company?q=${encodeURIComponent(q)}`)
-        // Ignore if the user kept typing since we fired.
         if (latestQueryRef.current !== q) return
         setSuggestions(Array.isArray(res) ? res : [])
-      } catch {
-        setSuggestions([])
-      }
+      } catch { setSuggestions([]) }
     }, 250)
     return () => clearTimeout(handle)
   }, [value])
 
   useEffect(() => {
-    const onDown = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false)
+    const onDown = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
-  const pick = (s) => {
-    onChange(s)
-    setOpen(false)
-    setActive(-1)
-  }
+  const pick = (s: string) => { onChange(s); setOpen(false); setActive(-1) }
 
-  const onKeyDown = (e) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open || suggestions.length === 0) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActive((i) => (i + 1) % suggestions.length)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive((i) => (i - 1 + suggestions.length) % suggestions.length)
-    } else if (e.key === 'Enter' && active >= 0) {
-      e.preventDefault()
-      pick(suggestions[active])
-    } else if (e.key === 'Escape') {
-      setOpen(false)
-    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i + 1) % suggestions.length) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i - 1 + suggestions.length) % suggestions.length) }
+    else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(suggestions[active]) }
+    else if (e.key === 'Escape') setOpen(false)
   }
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div ref={wrapRef} className="relative">
       <input
         value={value}
         placeholder={placeholder || 'Company (optional, e.g. Meta, Stripe, your startup)'}
@@ -74,11 +58,11 @@ export default function CompanyAutocomplete({ value, onChange, placeholder }) {
         autoComplete="off"
       />
       {open && suggestions.length > 0 && (
-        <div className="autocomplete">
+        <div className={autocomplete}>
           {suggestions.map((s, i) => (
             <div
               key={s}
-              className={`autocomplete-item ${i === active ? 'active' : ''}`}
+              className={autocompleteItem(i === active)}
               onMouseEnter={() => setActive(i)}
               onMouseDown={(e) => { e.preventDefault(); pick(s) }}
             >

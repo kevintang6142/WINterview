@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import { useAuth } from './auth'
-
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Search from './pages/Search'
@@ -12,17 +11,18 @@ import SessionResult from './pages/SessionResult'
 import Profile from './pages/Profile'
 import ResponseDetail from './pages/ResponseDetail'
 import SettingsPage from './pages/Settings'
+import { ReactNode } from 'react'
 
-function RequireAuth({ children }) {
+function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
-  if (!ready) return <div className="main"><div className="card">Loading…</div></div>
+  if (!ready) return <div className="max-w-[1100px] mx-auto p-6"><div className="bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin">Loading…</div></div>
   if (!user) return <Navigate to="/login" replace />
-  return children
+  return <>{children}</>
 }
 
 export default function App() {
   return (
-    <div className="app">
+    <div className="grid grid-rows-[auto_1fr] min-h-full">
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />

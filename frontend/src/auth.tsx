@@ -1,10 +1,23 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { api } from './api'
+import { User } from './types'
 
-const AuthCtx = createContext({ user: null, login: () => {}, logout: () => {} })
+interface AuthCtxValue {
+  user: User | null
+  login: (credential: string) => Promise<User>
+  logout: () => void
+  ready: boolean
+}
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+const AuthCtx = createContext<AuthCtxValue>({
+  user: null,
+  login: async () => { throw new Error('not ready') },
+  logout: () => {},
+  ready: false,
+})
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -21,7 +34,7 @@ export function AuthProvider({ children }) {
       .finally(() => setReady(true))
   }, [])
 
-  const login = async (credential) => {
+  const login = async (credential: string): Promise<User> => {
     const { token, user } = await api.post('/auth/google', { credential })
     localStorage.setItem('winterview.token', token)
     setUser(user)

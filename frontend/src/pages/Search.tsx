@@ -1,0 +1,132 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api } from '../api'
+import { main, card, stack, row, tag, muted } from '../lib/ui'
+import { Question } from '../types'
+
+const ALL_CATEGORIES = [
+  'Adaptability', 'Ambition', 'Analytical Thinking', 'Building Relationships',
+  'Caution', 'Communication', 'Confidentiality', 'Conflict Resolution',
+  'Customer Service', 'Decision Making', 'Delegation', 'Detail-Oriented',
+  'Developing Others', 'Flexibility', 'Follow-up & Control', 'Influence',
+  'Initiative', 'Innovation', 'Integrity', 'Leadership', 'Listening',
+  'Motivation', 'Negotiation', 'Performance Management', 'Perseverance',
+  'Personal Effectiveness', 'Planning & Organization', 'Problem Solving',
+  'Removing Obstacles', 'Self-Assessment', 'Setting Goals', 'Teamwork',
+  'Values Diversity',
+]
+
+type SortMode = 'text' | 'category' | 'responses'
+
+export default function Search() {
+  const [q, setQ] = useState('')
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set(ALL_CATEGORIES))
+  const [sort, setSort] = useState<SortMode>('text')
+  const [items, setItems] = useState<Question[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    api.get('/questions').then(setItems).catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = useMemo(() => {
+    let result = items
+    if (selectedCats.size > 0 && selectedCats.size < ALL_CATEGORIES.length)
+      result = result.filter((it) => it.category && selectedCats.has(it.category))
+    if (q.trim())
+      result = result.filter((it) => it.text.toLowerCase().includes(q.trim().toLowerCase()))
+    const copy = [...result]
+    if (sort === 'text') copy.sort((a, b) => a.text.localeCompare(b.text))
+    else if (sort === 'category') copy.sort((a, b) => (a.category ?? '').localeCompare(b.category ?? ''))
+    else copy.sort((a, b) => (b.public_response_count ?? 0) - (a.public_response_count ?? 0))
+    return copy
+  }, [items, q, selectedCats, sort])
+
+  const toggleCat = (cat: string) =>
+    setSelectedCats((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat); else next.add(cat)
+      return next
+    })
+
+  const isFiltered = (selectedCats.size > 0 && selectedCats.size < ALL_CATEGORIES.length) || !!q.trim()
+
+  return (
+    <div className={main}>
+      <div className={stack}>
+        <div className={card}>
+          <h3 className="mt-0 mb-3">Search behavioral questions</h3>
+          <input
+            placeholder="Type to filter by question text…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+
+          {/* Category chips */}
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
+            {ALL_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => toggleCat(cat)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                  selectedCats.has(cat)
+                    ? 'bg-skin-accent text-white border-skin-accent'
+                    : 'border-skin-border text-skin-muted'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-2">
+            <button className={`${muted} text-xs underline`} onClick={() => setSelectedCats(new Set(ALL_CATEGORIES))}>All</button>
+            <button className={`${muted} text-xs underline`} onClick={() => setSelectedCats(new Set())}>None</button>
+          </div>
+
+          {/* Sort controls */}
+          <div className={`${row} gap-2 mt-3 pt-3 border-t border-skin-border`}>
+            <span className={`${muted} text-xs shrink-0`}>Sort:</span>
+            {(['text', 'category', 'responses'] as SortMode[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSort(s)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                  sort === s
+                    ? 'bg-skin-accent text-white border-skin-accent'
+                    : 'border-skin-border text-skin-muted'
+                }`}
+              >
+                {s === 'text' ? 'Question (A–Z)' : s === 'category' ? 'Category (A–Z)' : 'Most responses'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`${muted} text-sm`}>
+          {loading ? 'Loading…' : `${filtered.length} question${filtered.length === 1 ? '' : 's'}${isFiltered ? ' matching filters' : ''}`}
+        </div>
+
+        {!loading && filtered.length === 0 && (
+          <div className={`${card} ${muted}`}>No questions match your filters.</div>
+        )}
+
+        {filtered.map((it) => (
+          <Link to={`/question/${it.id}`} key={it.id} className="text-skin-text hover:no-underline block">
+            <div className={`${card} cursor-pointer`}>
+              <div className="font-semibold mb-1.5">{it.text}</div>
+              <div className={`${row} mt-2`}>
+                {it.category && <span className={tag}>{it.category}</span>}
+                <span className={`${muted} ml-auto`}>
+                  {it.public_response_count} response{it.public_response_count === 1 ? '' : 's'}
+                  {it.avg_rating != null ? ` · ⭐ ${it.avg_rating.toFixed(1)}` : ''}
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}

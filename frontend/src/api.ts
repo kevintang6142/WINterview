@@ -1,11 +1,11 @@
 const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
-function authHeader() {
+function authHeader(): Record<string, string> {
   const t = localStorage.getItem('winterview.token')
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-async function handle(res) {
+async function handle(res: Response): Promise<any> {
   if (!res.ok) {
     let msg = res.statusText
     try {
@@ -22,24 +22,25 @@ async function handle(res) {
 
 export const api = {
   base: BASE,
-  get: (path) =>
+
+  get: (path: string): Promise<any> =>
     fetch(`${BASE}${path}`, { headers: { ...authHeader() } }).then(handle),
 
-  post: (path, body) =>
+  post: (path: string, body?: unknown): Promise<any> =>
     fetch(`${BASE}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...authHeader() },
       body: body ? JSON.stringify(body) : undefined,
     }).then(handle),
 
-  postForm: (path, formData) =>
+  postForm: (path: string, formData: FormData): Promise<any> =>
     fetch(`${BASE}${path}`, {
       method: 'POST',
       headers: { ...authHeader() },
       body: formData,
     }).then(handle),
 
-  postRaw: async (path, body) => {
+  postRaw: async (path: string, body?: unknown): Promise<Blob> => {
     const res = await fetch(`${BASE}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...authHeader() },
@@ -48,4 +49,10 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status}`)
     return res.blob()
   },
+
+  delete: (path: string): Promise<any> =>
+    fetch(`${BASE}${path}`, {
+      method: 'DELETE',
+      headers: { ...authHeader() },
+    }).then(handle),
 }
