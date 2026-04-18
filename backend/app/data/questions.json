@@ -1,52 +1,1731 @@
 [
-  {"text": "Tell me about a time you faced a significant challenge at work and how you overcame it.", "tags": ["challenge", "problem-solving"]},
-  {"text": "Describe a situation where you had to work with a difficult team member. How did you handle it?", "tags": ["teamwork", "conflict"]},
-  {"text": "Give an example of a goal you set and how you achieved it.", "tags": ["goals", "motivation"]},
-  {"text": "Tell me about a time you failed. What did you learn from it?", "tags": ["failure", "learning"]},
-  {"text": "Describe a time when you had to make a decision with incomplete information.", "tags": ["decision-making", "ambiguity"]},
-  {"text": "Tell me about a time you had to persuade someone to see things your way.", "tags": ["influence", "communication"]},
-  {"text": "Give an example of when you demonstrated leadership, even without a formal title.", "tags": ["leadership"]},
-  {"text": "Tell me about a project you're most proud of and your specific contribution.", "tags": ["achievement", "ownership"]},
-  {"text": "Describe a time you received harsh or unexpected feedback. How did you respond?", "tags": ["feedback", "growth"]},
-  {"text": "Tell me about a time you had to meet a tight deadline. How did you prioritize?", "tags": ["time-management", "prioritization"]},
-  {"text": "Describe a time you went above and beyond what was expected.", "tags": ["initiative", "ownership"]},
-  {"text": "Tell me about a conflict you had with your manager and how you resolved it.", "tags": ["conflict", "leadership"]},
-  {"text": "Give an example of a time you had to learn something new quickly.", "tags": ["learning", "adaptability"]},
-  {"text": "Describe a time you identified a problem no one else had noticed.", "tags": ["initiative", "problem-solving"]},
-  {"text": "Tell me about a time you had to give someone difficult feedback.", "tags": ["feedback", "communication"]},
-  {"text": "Describe a situation where you had to change your approach mid-project.", "tags": ["adaptability", "project"]},
-  {"text": "Tell me about a time you disagreed with a popular decision on your team.", "tags": ["conflict", "communication"]},
-  {"text": "Give an example of a time you mentored or helped a coworker succeed.", "tags": ["mentorship", "teamwork"]},
-  {"text": "Describe a time you took a calculated risk. What was the outcome?", "tags": ["risk", "decision-making"]},
-  {"text": "Tell me about a time you handled multiple competing priorities.", "tags": ["prioritization", "time-management"]},
-  {"text": "Describe the most innovative thing you've done at work.", "tags": ["innovation", "creativity"]},
-  {"text": "Tell me about a time you advocated for a user or customer.", "tags": ["customer-focus", "advocacy"]},
-  {"text": "Give an example of when you had to make an unpopular decision.", "tags": ["decision-making", "leadership"]},
-  {"text": "Tell me about a time you had to work across different teams or departments.", "tags": ["collaboration", "communication"]},
-  {"text": "Describe a time you missed a deadline. What happened and what did you learn?", "tags": ["failure", "time-management"]},
-  {"text": "Tell me about a time you simplified a complex process.", "tags": ["simplification", "problem-solving"]},
-  {"text": "Describe a situation where you had to influence without authority.", "tags": ["influence", "leadership"]},
-  {"text": "Tell me about a time your idea was rejected. How did you respond?", "tags": ["resilience", "communication"]},
-  {"text": "Give an example of a time you had to deliver bad news. How did you approach it?", "tags": ["communication", "leadership"]},
-  {"text": "Describe a time you had to recover from a major mistake.", "tags": ["failure", "ownership"]},
-  {"text": "Tell me about a time you improved a process or system.", "tags": ["process", "initiative"]},
-  {"text": "Describe a time you had to say no to a stakeholder.", "tags": ["prioritization", "communication"]},
-  {"text": "Tell me about a time you worked on a team with very different working styles.", "tags": ["teamwork", "diversity"]},
-  {"text": "Describe a time you had to dive deep to understand a technical problem.", "tags": ["problem-solving", "depth"]},
-  {"text": "Tell me about a time you balanced speed vs. quality.", "tags": ["trade-offs", "decision-making"]},
-  {"text": "Give an example of how you handled an ambiguous problem with no clear owner.", "tags": ["ambiguity", "ownership"]},
-  {"text": "Describe a time you proactively found a way to help others.", "tags": ["teamwork", "initiative"]},
-  {"text": "Tell me about a time you disagreed with data or a popular metric.", "tags": ["data", "conflict"]},
-  {"text": "Give an example of a time you took ownership of something outside your scope.", "tags": ["ownership", "initiative"]},
-  {"text": "Describe a time you had to advocate for a long-term investment over short-term wins.", "tags": ["strategy", "influence"]},
-  {"text": "Tell me about a time you turned a skeptic into a supporter.", "tags": ["influence", "communication"]},
-  {"text": "Describe the hardest conversation you've had at work.", "tags": ["communication", "difficult"]},
-  {"text": "Tell me about a time you changed your mind based on new evidence.", "tags": ["open-mindedness", "growth"]},
-  {"text": "Give an example of a time you supported a teammate under pressure.", "tags": ["empathy", "teamwork"]},
-  {"text": "Describe a time you dealt with a drop in team morale.", "tags": ["leadership", "culture"]},
-  {"text": "Tell me about a time you had to work with limited resources.", "tags": ["resourcefulness", "constraints"]},
-  {"text": "Describe a time you disagreed but committed to a decision anyway.",  "tags": ["disagree-and-commit", "teamwork"]},
-  {"text": "Tell me about a time you shipped something imperfect on purpose. Why?", "tags": ["trade-offs", "shipping"]},
-  {"text": "Give an example of when you had to challenge the status quo.", "tags": ["initiative", "change"]},
-  {"text": "Tell me about your proudest moment of personal growth at work.", "tags": ["growth", "self-awareness"]}
+  {
+    "text": "Describe a major change that occurred in a job that you held. What specifically did you do to adapt to this change?",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "Tell us about a situation in which you had to adjust to changes over which you had no control. How did you handle it?",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "Tell us about a time that you had to change your plans at the last minute. What was the final outcome?",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "What do you do when priorities change quickly? Give one example of when this happened.",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "Describe a time when you were faced with a stressful situation that demonstrated your coping skills.",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "Give me a specific example of a time when you had to conform to a process or policy with which you did not agree. What was the situation and how did you ensure compliance?",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "Describe a situation where you had a number of alternatives to choose from. How did you go about choosing one? How did you assemble the information? How did you review the information? What process did you follow to reach a conclusion?",
+    "category": "Adaptability",
+    "tags": [
+      "adaptability"
+    ]
+  },
+  {
+    "text": "What are some of the major decisions you have made over the past (6, 12, 18) months? Performance Management Planning & Organization Behavioral-Based Interview Questions",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Describe a project or idea that was implemented primarily because of your efforts. What was your role? What was the outcome?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Describe a time when you made a suggestion to improve the work in your organization/department. What was the final outcome of your proposed change?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Give an example of an important goal that you set in the past. Talk about your success in reaching it.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Give two examples of things you\u2019ve done in previous jobs that demonstrate your willingness to work hard.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to go above and beyond the call of duty in order to get a job done.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Tell us about a time when a job had to be completed and you were able to focus your attention and efforts to get it done.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you were particularly effective on prioritizing tasks and completing a project on schedule.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Tell us about the last time that you undertook a project that demanded a lot of initiative. How did you ensure that it was successful?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Tell us how you keep your job knowledge current with the ongoing changes in the industry.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "There are times when we work without close supervision or support to get the job done. Tell us about a time when you found yourself in such a situation and how you stayed on task.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "What is the most competitive work situation you have experienced? How did you handle it? What was the result?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "What is the riskiest decision you have made? What was the situation? What happened?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "What kinds of challenges did you face on your last job? Give an example of how you handled them.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "What projects have you started on your own recently? What prompted you to get started?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "Explain the things you have done to become better qualified for your career.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "What was the best idea that you came up with in your career? How did you apply it?",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "When you disagree with your manager, what do you do? Give an example.",
+    "category": "Ambition",
+    "tags": [
+      "ambition"
+    ]
+  },
+  {
+    "text": "When you have a lot of work to do, how do you get it all done? Give an example.",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Describe the project or situation which best demonstrates your analytical abilities.",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Developing and using a detailed procedure is often very important in a job. Tell about a time when you needed to develop and use a detailed procedure to successfully complete a project. What was the outcome of your efforts?",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Give me a specific example of a time when you used good judgment and logic in solving a problem.",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Give me an example of when you took a risk to achieve a goal. What was the outcome?",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Tell us about a job or setting where great precision to detail was required to complete a task. How did you handle that situation?",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to analyze information and make a recommendation. What kind of thought process did you go through? What was your reasoning behind your decision?",
+    "category": "Analytical Thinking",
+    "tags": [
+      "analytical-thinking"
+    ]
+  },
+  {
+    "text": "Tell us about a past experience that required you to be especially alert to details while doing the task(s) involved.",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "Give a specific example of a time when you had to address an angry customer/patient. What was the problem and what was the outcome? How would you assess your role in diffusing the situation?",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "It is very important to build good relationships at work but sometimes it doesn\u2019t always work. If you can, tell me about a time when you were not able to build a successful relationship with a difficult person.",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you built rapport quickly with someone under difficult conditions. What did you specifically do to overcome the difficult conditions?",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "What, in your opinion, are the key ingredients in guiding and maintaining successful business relationships? Give examples of how you made these work for you.",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "What have you done in past situations to contribute toward a teamwork environment?",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "Please describe the most memorable situation in which you went out of your way to help a co-worker in need. How did your efforts benefit the other person and the ongoing relationship?",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "Describe a situation in which you helped to put an anxious or scared patient at ease. What methods or tactics did you use to build a trusting relationship?",
+    "category": "Building Relationships",
+    "tags": [
+      "building-relationships"
+    ]
+  },
+  {
+    "text": "Please describe the most memorable situation in which you extended compassion to a patient. In what ways did this help with relationship building?",
+    "category": "Caution",
+    "tags": [
+      "caution"
+    ]
+  },
+  {
+    "text": "Have you ever worked in a situation where the rules and guidelines were not clear? Tell me about it. How did you feel about it? How did you react?",
+    "category": "Caution",
+    "tags": [
+      "caution"
+    ]
+  },
+  {
+    "text": "Tell us about a situation when it was important for you to pay attention to details. How did you handle it?",
+    "category": "Caution",
+    "tags": [
+      "caution"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you demonstrated too much initiative. How did you correct the situation?",
+    "category": "Caution",
+    "tags": [
+      "caution"
+    ]
+  },
+  {
+    "text": "In everyone\u2019s life there will come a time when we must choose between \u201cdoing the right thing\u201d and doing the easiest thing (or what we\u2019d rather do). Please describe a situation in which you did \u201cthe right thing\u201d rather than what you wanted to do. How did you come to your decision? Were there any consequences for your choice of action? What was the final outcome?",
+    "category": "Caution",
+    "tags": [
+      "caution"
+    ]
+  },
+  {
+    "text": "Tell me about a time you had to use caution when delivering a difficult message. What did you do to ensure your message was well received?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Describe a situation in which you were able to effectively \u201cread\u201d another person and guide your actions by your understanding of their individual needs or values.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Describe a situation when you were able to strengthen a relationship by communicating effectively. What was it that made your communication so effective?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Describe a situation where you felt you had not communicated well. How did you correct the situation?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Describe a time when you were able to effectively communicate a difficult or unpleasant idea to a superior. How did you approach the conversation and what was the final outcome?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Describe the most significant written document, report or presentation which you had to complete.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Give me an example of a time when you were able to successfully communicate with another person, even when that individual may not have personally liked you, or vice versa.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell us about the most difficult or frustrating individual that you\u2019ve ever had to work with, and how you managed to work with him/her.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Have you ever had to \u201csell\u201d an idea to your co-workers or group? How did you do it? Did they \u201cbuy\u201d it?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "How do you keep your peers and co-workers informed about information that affects their jobs?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Give a past example of how you have kept your manager informed about the day-to-day operations.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "In the past, how did you go about explaining a complex technical problem to a person who does not understand technical jargon? Give a specific example of the approaches you have previously taken.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "What kinds of communication situations cause you difficulty? Give an example and explain why.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell us about a recent successful experience in making a speech or presentation. How did you prepare? What obstacles did you face? How did you handle them?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell me about a specific instance when you and your current/previous supervisor disagreed but you still found a way to get your point across.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you had to present complex information. How did you ensure that the other person understood?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you had to use your verbal communication skills in order to get an important point across. What was the outcome of your efforts?",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell me about an experience in which you had to speak up in order to be sure that other people knew what you thought or felt.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "Tell me about a time in which you had to use your written communication skills in order to get an important point across.",
+    "category": "Communication",
+    "tags": [
+      "communication"
+    ]
+  },
+  {
+    "text": "What challenges have occurred while you were coordinating work with other units, departments, and/ or divisions? Give a specific example of when this has occurred in the past and describe what you did to overcome those challenges.",
+    "category": "Confidentiality",
+    "tags": [
+      "confidentiality"
+    ]
+  },
+  {
+    "text": "Tell me about a time that you were asked for specific information about a patient that you felt should be kept confidential. How did you respond?",
+    "category": "Confidentiality",
+    "tags": [
+      "confidentiality"
+    ]
+  },
+  {
+    "text": "Suppose you are having lunch at the hospital with some of your co-workers and they begin to discuss the specifics of a patient that, it turns out, you know personally. How would you respond to your co-workers?",
+    "category": "Confidentiality",
+    "tags": [
+      "confidentiality"
+    ]
+  },
+  {
+    "text": "Tell us about a time that you disclosed something you shouldn\u2019t have. What was the outcome? What did you learn from the experience?",
+    "category": "Confidentiality",
+    "tags": [
+      "confidentiality"
+    ]
+  },
+  {
+    "text": "Describe the most memorable situation in which you struggled to keep a confidence. How did you handle the situation? What was the outcome?",
+    "category": "Confidentiality",
+    "tags": [
+      "confidentiality"
+    ]
+  },
+  {
+    "text": "Informal communication (i.e. rumor and gossip) is present in every organization. What steps have you taken in the past to avoid spreading erroneous and/or harmful information? Can you provide a specific example of how your efforts have helped to better the workplace?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Describe a time when you took personal accountability for a conflict and initiated contact with the individual(s) involved to explain your actions.",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "What is your typical way of dealing with conflict? Give me an example.",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Describe your most memorable experience when you had to confront a co-worker. What were the specific words you used and what was the final outcome?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Describe the last time a co-worker did not do his/her fair share of the work. How did you respond to the situation?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Tell me about the worst interpersonal conflict you have had with a co-worker. In what ways did you attempt to mend the relationship?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Describe a situation where you had to settle an argument between two employees (or people you knew). What did you do? What was the result?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you had to help two peers settle a dispute. How did you go about identifying the issues? What did you do? What was the result?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Please describe a situation in which you had to incorporate others\u2019 input to solve an issue.",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Tell me about a time you were able to successfully deal with another person even when that individual may not have personally liked you (or vice versa).",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Describe a time when you anticipated potential problems and developed preventive measures to mitigate them. What was the outcome?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "There are times in everyone\u2019s life when, intentionally or not, they are insensitive to the feelings of others. Please describe a time when you behaved insensitively to others. How did you rectify the situation?",
+    "category": "Conflict Resolution",
+    "tags": [
+      "conflict-resolution"
+    ]
+  },
+  {
+    "text": "Tell me about a time that you were called upon to do work that you felt was not a part of your job. How did you handle the situation and what was the final outcome?",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Tell us about the most difficult customer/patient that you have ever dealt with. How did you provide good customer service in spite of the situation?",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "How do you go about establishing rapport with a customer/patient? What have you done to gain their confidence? Give an example.",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "What specific actions have you taken in the past to improve relations with your customers/patients?",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Please describe a recent situation in which you exceeded a customer\u2019s expectations. How did the customer/patient respond?",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Please describe the way you typically introduce yourself to customers/patients.",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Describe the mechanisms you utilize to keep patients informed about their care.",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Tell me about a recent experience in which you dealt with a difficult or unsatisfied customer. What attempts did you make to provide service recovery?",
+    "category": "Customer Service",
+    "tags": [
+      "customer-service"
+    ]
+  },
+  {
+    "text": "Some patients are needier than others. Please describe the neediest patient (or customer) you have worked with. What specifically did you do to meet their needs?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Discuss an important decision you have made regarding a task or project at work. What factors influenced your decision and what was the final outcome?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Everyone has made some poor decisions or has done something that just did not turn out right. Tell me about a time this has happened to you. Describe the steps you took to rectify the mistake.",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Give an example of a time in which you had to keep from speaking or not finish a task because you did not have enough information to come to a good decision.",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Give an example of a time when there was a decision to be made and procedures were not in place.",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Give an example of a time when you had to be relatively quick in coming to a decision. What was the situation, the impact, and the outcome?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "How do you go about deciding what strategy to employ when dealing with a difficult customer?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "How do you involve your manager and/or others when you make a decision?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "In a current job task, what steps do you go through to ensure your decisions are correct/effective?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to defend a decision you made even though other important people were opposed to your decision.",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "What was your most difficult decision in the last 6 months? What made it difficult?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "When you have to make a highly technical decision, how do you go about doing it? Can you provide a specific situation?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you were forced to make an unpopular decision.",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Describe a situation when you had to exercise a significant amount of self-control. What was the result?",
+    "category": "Decision Making",
+    "tags": [
+      "decision-making"
+    ]
+  },
+  {
+    "text": "Give me an example of when you were responsible for an error or mistake. What was the outcome? What, if anything, would you do differently?",
+    "category": "Delegation",
+    "tags": [
+      "delegation"
+    ]
+  },
+  {
+    "text": "Do you consider yourself a macro or micro manager? Give me an example of how you delegate.",
+    "category": "Delegation",
+    "tags": [
+      "delegation"
+    ]
+  },
+  {
+    "text": "How do you make the decision to delegate work? Give an example.",
+    "category": "Delegation",
+    "tags": [
+      "delegation"
+    ]
+  },
+  {
+    "text": "What was the biggest mistake you have made when delegating work? The biggest success?",
+    "category": "Delegation",
+    "tags": [
+      "delegation"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you delegated a project effectively.",
+    "category": "Detail-Oriented",
+    "tags": [
+      "detail-oriented"
+    ]
+  },
+  {
+    "text": "Do you prefer to work with the \u201cbig picture\u201d or the \u201cdetails\u201d of a situation? Give me an example of an experience that illustrates your preference.",
+    "category": "Detail-Oriented",
+    "tags": [
+      "detail-oriented"
+    ]
+  },
+  {
+    "text": "In healthcare, practitioners frequently have to document, in detail, what they did during their shift so that the information can be passed along to the next shift. Please describe the most detailed document you have been required to prepare. How did this information help others to be more effective?",
+    "category": "Detail-Oriented",
+    "tags": [
+      "detail-oriented"
+    ]
+  },
+  {
+    "text": "Have the jobs you held in the past required little attention, moderate attention, or a great deal of attention to detail? Give me an example of a situation that illustrates this requirement.",
+    "category": "Detail-Oriented",
+    "tags": [
+      "detail-oriented"
+    ]
+  },
+  {
+    "text": "Suppose, in looking over a patient\u2019s chart, you notice that the medication dosage given to the patient by a previous shift doesn\u2019t seem appropriate (i.e. too high or too low). Describe the specific steps you would take in this scenario.",
+    "category": "Detail-Oriented",
+    "tags": [
+      "detail-oriented"
+    ]
+  },
+  {
+    "text": "Tell me about a mistake you have made in the past because you failed to pay attention to the details. What was the situation and how did you recover from your mistake?",
+    "category": "Developing Others",
+    "tags": [
+      "developing-others"
+    ]
+  },
+  {
+    "text": "How do you handle a co-worker whose performance is consistently marginal? Can you provide a specific example of when you have addressed this in the past?",
+    "category": "Developing Others",
+    "tags": [
+      "developing-others"
+    ]
+  },
+  {
+    "text": "How do you coach an employee in completing a new assignment? Give an example from your past.",
+    "category": "Developing Others",
+    "tags": [
+      "developing-others"
+    ]
+  },
+  {
+    "text": "At one time or another we all have experienced the challenge of training someone who is \u201cdifferent\u201d from ourselves. Tell me about the steps you have taken in the past to ensure that you are meeting the other person\u2019s needs.",
+    "category": "Developing Others",
+    "tags": [
+      "developing-others"
+    ]
+  },
+  {
+    "text": "What was your biggest mistake in hiring someone? What happened? How did you deal with the situation?",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Give an example of a time when you had to adjust your style because it was not meeting the objectives and/or people were not responding correctly. What was the outcome?",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Give an example of how you respond when you are faced with an obstacle to an important project.",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "When you have difficulty persuading someone to your point of view, what do you do? Give an example.",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Tell me about a time when new processes and procedures have caused you to change the way you work. How did you handle the change(s)?",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Give an example of a time when you helped a peer accept change and make the necessary adjustments to move forward. What were the change/transition skills that you used? Follow-up and Control",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Give an example of a time you had to follow-up on a project to ensure success. What specifically did you do to make sure the objectives were met?",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Oftentimes, you will have to work with departments and people outside of your immediate work unit to accomplish a shared goal. Can you describe a time in which you have successfully done this in the past? What did you do to track the progress of your work?",
+    "category": "Flexibility",
+    "tags": [
+      "flexibility"
+    ]
+  },
+  {
+    "text": "Tell me about a time you faced resistance when trying to implement change. How did you deal with it? What was the final outcome?",
+    "category": "Influence",
+    "tags": [
+      "influence"
+    ]
+  },
+  {
+    "text": "Describe a situation in which you were able to positively influence the actions of others in a desired direction. What steps did you take to achieve that goal?",
+    "category": "Influence",
+    "tags": [
+      "influence"
+    ]
+  },
+  {
+    "text": "Have you ever had to persuade a peer or manager to accept an idea that you knew they would not like? Describe the resistance you met and how you overcame it.",
+    "category": "Influence",
+    "tags": [
+      "influence"
+    ]
+  },
+  {
+    "text": "In selling an idea, it is sometimes useful to use metaphors, analogies, or stories to make your point. Give a recent example of when you were able to successfully do that.",
+    "category": "Influence",
+    "tags": [
+      "influence"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you used your leadership ability to gain support for what initially had strong opposition. Describe the resistance that you faced and how you overcame it.",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "Give me an example of when you had to go above and beyond the call of duty in order to get a job done.",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "Give me examples of projects/tasks you started on your own. What was the end result?",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "Give some instances in which you anticipated problems and were able to influence a new direction. What was the end result?",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "How did you get work assignments at your most recent employer? Is this method effective?",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "What changes did you develop at your most recent employer? Were they successful?",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "What sorts of projects did you generate that required you to go beyond your job description? How did you manage the extra work?",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "Give me an example of when you showed initiative and took the lead.",
+    "category": "Initiative",
+    "tags": [
+      "initiative"
+    ]
+  },
+  {
+    "text": "Can you provide a specific example of when you found it necessary to devote extra time and energy to the job? What was the end result of your initiative?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Can you think of a situation where innovation was required at work? What did you do in that specific situation?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Describe a situation when you demonstrated initiative and took action without waiting for direction. What was the outcome?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Describe a time when you came up with a creative solution/idea/project/report to address a problem. What specifically was your role and how did it turn out?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Describe the most creative work-related project which you have carried out. What was the outcome?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Sometimes it is essential that we break out of the routine, standardized way of doing things in order to complete the task. Give an example of when you were able to successfully develop such a new approach.",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Tell us about a problem that you solved in a unique or unusual way. What was the outcome? Were you satisfied with it?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Tell us about a suggestion you made to improve the way job processes/operations worked. What was the result?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "What innovative procedures have you developed? How did you develop them? Who was involved? Where did the ideas come from?",
+    "category": "Innovation",
+    "tags": [
+      "innovation"
+    ]
+  },
+  {
+    "text": "Describe a situation that required you to think \u201coutside of the box\u201d. What did you come up with and what was the impact of your idea?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "Describe a time when you were asked to keep information confidential. What did you specifically do to ensure that confidentiality was maintained?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "Give examples of how you have acted with integrity in your job/work relationship.",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "Tell me about a time when your trustworthiness was challenged. How did you react/respond?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "On occasion we are confronted by dishonesty in the workplace. Tell me about such an occurrence and how you handled it.",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "Tell me about a specific time when you had to handle a tough problem which challenged fairness or ethnical issues.",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "Trust requires personal accountability. Can you tell about a time when you chose to trust someone only to find out that it was a mistake? How did you handle the situation?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "From time to time, everyone takes a shortcut when doing his/her job. Can you tell us about a time when you took a shortcut that resulted in a serious problem? How did you handle it? What did you learn from this experience?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "We have all seen examples of a time when a manager or a co-worker breaks the rules or acts in a dishonest and unprofessional manner. Can you please provide an example of when this has happened to you? What actions did you take, if any, to handle the situation?",
+    "category": "Integrity",
+    "tags": [
+      "integrity"
+    ]
+  },
+  {
+    "text": "We work with a great deal of confidential information. Describe how you would have handled sensitive information in a past work experience. What strategies would you utilize to maintain confidentiality when pressured by others?",
+    "category": "Leadership",
+    "tags": [
+      "leadership"
+    ]
+  },
+  {
+    "text": "Give an example of a time in which you felt you were able to build motivation in your co-workers and/or subordinates at work.",
+    "category": "Leadership",
+    "tags": [
+      "leadership"
+    ]
+  },
+  {
+    "text": "Give an example of your ability to build motivation in your co-workers. Why do you think you have been successful motivating others in the past?",
+    "category": "Leadership",
+    "tags": [
+      "leadership"
+    ]
+  },
+  {
+    "text": "Please provide an example of a situation where you have experienced difficulty getting others to accept your ideas. What was your approach? Did it work?",
+    "category": "Leadership",
+    "tags": [
+      "leadership"
+    ]
+  },
+  {
+    "text": "Have you ever been a member of a group where two of the members did not work well together? What did you do to get them to do so?",
+    "category": "Leadership",
+    "tags": [
+      "leadership"
+    ]
+  },
+  {
+    "text": "Describe a situation in which you were able to successfully influence someone to see things your way. What was it that made your efforts successful?",
+    "category": "Listening",
+    "tags": [
+      "listening"
+    ]
+  },
+  {
+    "text": "Give an example of a time when you made a mistake because you did not listen well to what someone had to say. How did you resolve the issue?",
+    "category": "Listening",
+    "tags": [
+      "listening"
+    ]
+  },
+  {
+    "text": "Describe a situation in which things went astray because you relied on incorrect information from others. What have you learned from that experience?",
+    "category": "Listening",
+    "tags": [
+      "listening"
+    ]
+  },
+  {
+    "text": "Describe how you would demonstrate active listening skills. Can you provide a specific example of how this has served you well in the past?",
+    "category": "Motivation",
+    "tags": [
+      "motivation"
+    ]
+  },
+  {
+    "text": "Describe a situation when you were able to have a positive influence on the actions of others. What specifically did you do to accomplish that goal?",
+    "category": "Motivation",
+    "tags": [
+      "motivation"
+    ]
+  },
+  {
+    "text": "Give an example of a time when you went above and beyond the call of duty. What was the outcome?",
+    "category": "Motivation",
+    "tags": [
+      "motivation"
+    ]
+  },
+  {
+    "text": "Tell me about an important goal that you have achieved in the past. In what ways did you motivate yourself to reach the goal?",
+    "category": "Motivation",
+    "tags": [
+      "motivation"
+    ]
+  },
+  {
+    "text": "Give an example of how you have been successful at empowering either a person or a group of people into accomplishing a task. What barriers did you face? What was the final outcome?",
+    "category": "Negotiation",
+    "tags": [
+      "negotiation"
+    ]
+  },
+  {
+    "text": "Describe the most challenging negotiation in which you were involved. What did you do? What were the results for you? What were the results for the other party?",
+    "category": "Negotiation",
+    "tags": [
+      "negotiation"
+    ]
+  },
+  {
+    "text": "Have you ever been in a situation where you had to bargain with someone? How did you feel about this? What did you do? Give an example. How did you prepare for it? How did you present your position? What was the most difficult part?",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "How do you handle a subordinate whose work is not up to expectations? Give a specific example from your past.",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "How do you coach a subordinate to develop a new skill? Give an example.",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "How do you handle performance reviews? Tell me about a difficult one.",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "How often do you discuss a subordinate\u2019s performance with him/her? Give an example.",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "Tell us about a specific development plan that you created and carried out with one or more of your employees. What was the specific situation? What were the components of the development plan? What was the outcome?",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to take disciplinary action with someone you supervised. What was the outcome?",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to tell a staff member that you were dissatisfied with his or her work. How did they respond? Did his/her performance increase?",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you had to use your authority to get something done. Where there any negative consequences?",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "There are times when people need extra help. Give an example of when you were able to provide that support to a person with whom you worked.",
+    "category": "Performance Management",
+    "tags": [
+      "performance-management"
+    ]
+  },
+  {
+    "text": "When do you give positive feedback to people? Tell me about the last time you did. Give an example of how you handle the need for constructive criticism with a subordinate or peer.",
+    "category": "Perseverance",
+    "tags": [
+      "perseverance"
+    ]
+  },
+  {
+    "text": "What was the most difficult decision you have had to make in your career? Walk us through the process you took to make a final decision.",
+    "category": "Perseverance",
+    "tags": [
+      "perseverance"
+    ]
+  },
+  {
+    "text": "Tell us about a specific setback you have faced. How did you deal with it?",
+    "category": "Perseverance",
+    "tags": [
+      "perseverance"
+    ]
+  },
+  {
+    "text": "What has been your major work related disappointment(s)? What happened and what did you do to overcome them?",
+    "category": "Perseverance",
+    "tags": [
+      "perseverance"
+    ]
+  },
+  {
+    "text": "Give me an example of a time when something you tried to accomplish did not turn out according to plan. What did you do to recover from the setback?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Give an example of a situation where others were intense but you were able to maintain your composure. What was the outcome?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "It is important to maintain a positive attitude at work when you have other things on your mind. Give a specific example of when you were able to do that.",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Keeping others informed of your progress/actions helps them feel comfortable. Tell us your methods for keeping your supervisor advised of the status on projects.",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Tell me about a recent job or experience that you would describe as a real learning experience. What did you learn from the job or experience?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you took responsibility for an error and were held personally accountable. What was the outcome of that experience?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Tell me about a time when your supervisor criticized your work. How did you respond and what steps did you take to improve?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Tell me about a demanding situation in which you managed to remain calm and composed under pressure. What was the outcome?",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "There are times when we are placed under extreme pressure on the job. Tell about a time when you were under such pressure and how you handled it.",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "Give examples of the things you have done to further your own professional development in the past 5 years.",
+    "category": "Personal Effectiveness",
+    "tags": [
+      "personal-effectiveness"
+    ]
+  },
+  {
+    "text": "When you have been made aware of, or have discovered for yourself, a problem in your work performance, what was your course of action? Can you give an example?",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "Describe a time when you had to make a difficult choice between your personal and professional life. What process did you go through to determine the greater need?",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "Give me an example of a project that best describes your organizational skills.",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "Describe how you develop a project team\u2019s goals and project plan. Give a specific example.",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "How do you schedule your time? Set priorities? How do you handle doing twenty things at once? Give an example of when you have managed your time successfully.",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "Give an example of a time when your schedule or project plan was upset by unforeseen circumstances. How did you respond in that situation? What did you do to avoid potential problems?",
+    "category": "Planning & Organization",
+    "tags": [
+      "planning-organization"
+    ]
+  },
+  {
+    "text": "What have you done in order to be effective with your organization and planning? Give an example.",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you did something completely different from the plan and/or assignment. Why? What happened?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Describe a situation where you had a conflict with another individual, and how you dealt with it. What was the outcome? How do you feel about it?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Describe a time in which you were faced with problems or stresses which tested your coping skills. What did you do?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Describe a time when you facilitated a creative solution to a problem between two employees. How was your solution received?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Give a specific example of a time when you used good judgment and logic in solving a problem. What was the outcome?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Give an example of when you \u201cwent to the source\u201d to address a conflict. Do you feel trust levels were improved as a result?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Problems occur in almost all work relationships. Describe a time when you had to cope with the resentment or hostility of a subordinate or co-worker.",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Some problems require developing a unique approach. Tell about a time when you were able to develop a different problem-solving approach. What was the outcome?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Sometimes the only way to resolve a conflict is through negotiation and compromise. Tell about a time when you were able to resolve a difficult situation by finding some common ground.",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Sometimes we need to remain calm on the outside when we are really upset on the inside. Give an example of a time that this happened to you.",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Tell me about a situation in which you had to separate the person from the issue when working to resolve issues. What was it that made you successful?",
+    "category": "Problem Solving",
+    "tags": [
+      "problem-solving"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you identified a potential problem and resolved the situation before it became serious.",
+    "category": "Removing Obstacles",
+    "tags": [
+      "removing-obstacles"
+    ]
+  },
+  {
+    "text": "Have you ever dealt with a situation where communications were poor? Where there was a lack of cooperation? Lack of trust? Give a specific example and tell us how you handled the situation.",
+    "category": "Removing Obstacles",
+    "tags": [
+      "removing-obstacles"
+    ]
+  },
+  {
+    "text": "Give an example of a time that you were able to achieve a goal in spite of not having adequate resources (e.g, time, money, people, etc.). What steps did you take to remove the obstacles in the way?",
+    "category": "Removing Obstacles",
+    "tags": [
+      "removing-obstacles"
+    ]
+  },
+  {
+    "text": "Tell me about a time when you had too many things to do and you were required to prioritize your tasks.",
+    "category": "Removing Obstacles",
+    "tags": [
+      "removing-obstacles"
+    ]
+  },
+  {
+    "text": "What have you done to make sure that your peers have the necessary resources to be successful? Give an example.",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "Can you recall a time when you were less than pleased with your performance? Give a specific example. What did you do to correct the issue?",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "Tell me about your most significant learning experience in the past 5 years. What made it so valuable?",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "Give me an example of an important goal that you had set in the past and tell me about your success in reaching it.",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "In what ways are you currently trying to improve yourself? How are you relevant in your chosen field?",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "What do you consider to be your professional strengths? Give me a specific example using this attribute in the workplace.",
+    "category": "Self-Assessment",
+    "tags": [
+      "self-assessment"
+    ]
+  },
+  {
+    "text": "What was the most useful criticism you ever received? Give us an example of how you made improvements afterwards.",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "How do you communicate personal goals to others? Give an example.",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "How have you involved others in the development of your goals? Give an example.",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "Give an example of a goal that you failed to meet in the past. What circumstances caused you to fall short and how did you recover?",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "What have you done in the past to ensure that you are contributing to organizational goals?",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "Give me an example of a time when you set a goal and were able to meet or achieve it. What about an example of when you did not meet your goal?",
+    "category": "Setting Goals",
+    "tags": [
+      "setting-goals"
+    ]
+  },
+  {
+    "text": "Can you provide an example of a time when you felt your goals were unreasonable? What did you do about it?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Describe a situation in which you had to arrive at a compromise or help others to compromise. What was your role? What steps did you take? What was the end result?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Describe a team experience you found disappointing. What would you have done to prevent this?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Describe a team experience you found rewarding. What made it successful?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Describe the types of teams you\u2019ve been involved with. What were your roles?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Describe your leadership style by providing a specific example of a situation when you successfully led a group.",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Give an example of how you have been successful at empowering a group of people in accomplishing a task.",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Please give your best example of working cooperatively as a team member to accomplish an important goal. What was the goal or objective? To what extent did you interact with others on this project?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Some people work best as part of a group\u2014others prefer the role of individual contributor. How would you describe yourself?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Tell us about a time that you had to work on a team that did not get along. What happened? What role did you take? What was the result?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Tell us about a work experience where you had to work closely with others. How did it go? How did you overcome any difficulties?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Tell us about the most difficult challenge you faced in trying to work cooperatively with someone who did not share the same ideas? What was your role in achieving the work objective?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Tell us about the most effective contribution you have made as part of a task group or special project team.",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Think about the times you have been a team leader. What could you have done to be more effective?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Tell us about the last time you had a disagreement with a peer? How did you resolve the situation?",
+    "category": "Teamwork",
+    "tags": [
+      "teamwork"
+    ]
+  },
+  {
+    "text": "Please describe an experience you have had working with a cross-function team with others from another department/unit. In your opinion, what were the most difficult challenges and what did you do to overcome them?",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  },
+  {
+    "text": "Give a specific example of how you have helped create an environment where differences are valued, encouraged and supported.",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  },
+  {
+    "text": "Tell us about a time that you successfully adapted to a culturally different environment. What struggles did you face and how did you overcome them?",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  },
+  {
+    "text": "Tell us about a time when you made an intentional effort to get to know someone from another culture. What was the end result?",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  },
+  {
+    "text": "What have you done to further your knowledge/understanding about diversity? How have you demonstrated your learning?",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  },
+  {
+    "text": "Give an example of measures you have taken to make someone feel comfortable in an environment that was obviously uncomfortable with his or her presence. STEP 1 Go to www.testsource.com STEP 2 Click \u201cStaff Assessment Administration/Interviewer\u2019s T oolkit\u201d STEP 3 Click to login to the \u201cStaff Assessment T oolkit\u201d STEP 4 Click \u201cView the T oolkit Page\u201d Additional competencies and questions by job title are available through T estSource\u00ae. Please follow the steps below to access additional resources: Username: client Password: hire4fit",
+    "category": "Values Diversity",
+    "tags": [
+      "values-diversity"
+    ]
+  }
 ]

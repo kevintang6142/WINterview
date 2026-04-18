@@ -18,6 +18,7 @@ dependencies = [
     "pyjwt>=2.9",
     "google-genai>=0.3",
     "elevenlabs>=1.10",
+    "pypdf>=6.10.2",
 ]
 
 [tool.uv]

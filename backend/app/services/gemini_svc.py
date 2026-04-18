@@ -75,10 +75,9 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"[A-Za-z']+", text.lower())
 
 
-def analyze_pacing(transcript: str, duration_seconds: float) -> dict[str, Any]:
+def analyze_pacing(transcript: str, duration_seconds: float, word_timestamps: list[dict] | None = None) -> dict[str, Any]:
     words = _tokenize(transcript)
     word_count = len(words)
-    duration = max(duration_seconds, 1.0)
 
     # filler word counts (phrases handled by substring match on the normalized transcript)
     normalized = " " + re.sub(r"[^a-z' ]", " ", transcript.lower()) + " "
@@ -91,21 +90,50 @@ def analyze_pacing(transcript: str, duration_seconds: float) -> dict[str, Any]:
             filler_words[fw] = n
             filler_count += n
 
-    wpm = word_count / (duration / 60.0) if duration > 0 else 0.0
+    # Typed responses have no timing data — return filler stats only
+    if duration_seconds <= 0:
+        return {
+            "filler_count": filler_count,
+            "filler_words": filler_words,
+            "word_count": word_count,
+            "duration_seconds": 0.0,
+            "words_per_minute": None,
+            "pacing_timeline": [],
+        }
 
-    # 10 equal-length buckets — used for the pacing graph on the frontend.
-    buckets = 10
+    duration = max(duration_seconds, 1.0)
+    wpm = word_count / (duration / 60.0)
+
+    WINDOW = 5.0  # seconds per bucket
     timeline: list[float] = []
-    if word_count > 0:
-        per_bucket = max(1, word_count // buckets)
-        per_bucket_seconds = duration / buckets
-        for i in range(buckets):
-            start = i * per_bucket
-            end = start + per_bucket if i < buckets - 1 else word_count
-            bucket_words = end - start
-            timeline.append(bucket_words / (per_bucket_seconds / 60.0))
-    else:
-        timeline = [0.0] * buckets
+
+    # Use real word timestamps when available (from ElevenLabs STT response).
+    # word_timestamps: [{"text": str, "start": float, "end": float}, ...]
+    real_words = [w for w in (word_timestamps or []) if isinstance(w.get("start"), (int, float)) and isinstance(w.get("end"), (int, float))]
+
+    if real_words and duration >= WINDOW:
+        n_buckets = int(duration // WINDOW)
+        remainder = duration - n_buckets * WINDOW
+        bucket_count = n_buckets + (1 if remainder >= 1.0 else 0)
+        for i in range(bucket_count):
+            t0 = i * WINDOW
+            t1 = t0 + (WINDOW if i < n_buckets else remainder)
+            # Count words whose midpoint falls inside this bucket
+            count_in = sum(
+                1 for w in real_words
+                if t0 <= (w["start"] + w["end"]) / 2.0 < t1
+            )
+            bucket_dur = t1 - t0
+            timeline.append(round(count_in / (bucket_dur / 60.0), 1))
+    elif duration >= WINDOW and word_count > 0:
+        # Fallback: uniform distribution (no timestamp data)
+        n_buckets = int(duration // WINDOW)
+        wps = word_count / duration
+        for _ in range(n_buckets):
+            timeline.append(round(wps * WINDOW / (WINDOW / 60.0), 1))
+        remainder = duration - n_buckets * WINDOW
+        if remainder >= 1.0:
+            timeline.append(round(wps * remainder / (remainder / 60.0), 1))
 
     return {
         "filler_count": filler_count,
@@ -113,7 +141,7 @@ def analyze_pacing(transcript: str, duration_seconds: float) -> dict[str, Any]:
         "word_count": word_count,
         "duration_seconds": duration,
         "words_per_minute": round(wpm, 1),
-        "pacing_timeline": [round(x, 1) for x in timeline],
+        "pacing_timeline": timeline,
     }
 
 

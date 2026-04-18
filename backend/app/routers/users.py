@@ -24,7 +24,6 @@ async def my_responses(user: dict = Depends(current_user)):
                 "is_public": r.get("is_public", False),
                 "avg_rating": r.get("avg_rating"),
                 "rating_count": r.get("rating_count", 0),
-                "like_count": r.get("like_count", 0),
                 "created_at": r["created_at"],
             }
         )

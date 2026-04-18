@@ -45,10 +45,10 @@ class QuestionCreate(BaseModel):
 
 # ---------- Sessions ----------
 class SessionCreate(BaseModel):
-    mode: Literal["random", "selected", "generated"] = "random"
+    mode: Literal["random", "selected"] = "random"
     count: int = Field(default=3, ge=1, le=5)
     question_ids: list[str] = []
-    company: str | None = None
+    categories: list[str] = []
 
 
 class Session(MongoBase):
@@ -90,6 +90,7 @@ class ResponseSubmit(BaseModel):
     question_id: str
     transcript: str
     duration_seconds: float = 0.0
+    word_timestamps: list[dict] = []  # [{"text": str, "start": float, "end": float}]
 
 
 class ResponseDoc(MongoBase):
@@ -101,8 +102,6 @@ class ResponseDoc(MongoBase):
     duration_seconds: float
     evaluation: Evaluation | None = None
     is_public: bool = False
-    like_count: int = 0
-    dislike_count: int = 0
     avg_rating: float | None = None
     rating_count: int = 0
     created_at: datetime
@@ -124,7 +123,11 @@ class Comment(MongoBase):
 
 
 class RatingCreate(BaseModel):
-    stars: int = Field(ge=1, le=5)
+    structure_star: int = Field(ge=1, le=5)
+    specificity_depth: int = Field(ge=1, le=5)
+    delivery_pacing: int = Field(ge=1, le=5)
+    relevance: int = Field(ge=1, le=5)
+    reflection: int = Field(ge=1, le=5)
 
 
 class ReactionCreate(BaseModel):
@@ -139,6 +142,4 @@ class FeedItem(MongoBase):
     overall_score: float | None
     avg_rating: float | None
     rating_count: int
-    like_count: int
-    dislike_count: int
     created_at: datetime

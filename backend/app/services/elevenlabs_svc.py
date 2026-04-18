@@ -5,17 +5,18 @@ import io
 import httpx
 
 from ..config import settings
+from ..voices import DEFAULT_VOICE_ID
 
 TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 TTS_TIMED_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
 STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 
 
-async def tts_stream(text: str) -> bytes:
+async def tts_stream(text: str, voice_id: str | None = None) -> bytes:
     """Synthesize speech for a question. Returns raw MP3 bytes."""
     if not settings.ELEVENLABS_API_KEY:
         raise RuntimeError("ELEVENLABS_API_KEY not configured")
-    url = TTS_URL.format(voice_id=settings.ELEVENLABS_VOICE_ID)
+    url = TTS_URL.format(voice_id=voice_id or DEFAULT_VOICE_ID)
     headers = {
         "xi-api-key": settings.ELEVENLABS_API_KEY,
         "accept": "audio/mpeg",
@@ -32,7 +33,7 @@ async def tts_stream(text: str) -> bytes:
         return r.content
 
 
-async def tts_with_timestamps(text: str) -> dict:
+async def tts_with_timestamps(text: str, voice_id: str | None = None) -> dict:
     """Synthesize speech and get character-level alignment.
 
     Returns:
@@ -48,7 +49,7 @@ async def tts_with_timestamps(text: str) -> dict:
     """
     if not settings.ELEVENLABS_API_KEY:
         raise RuntimeError("ELEVENLABS_API_KEY not configured")
-    url = TTS_TIMED_URL.format(voice_id=settings.ELEVENLABS_VOICE_ID)
+    url = TTS_TIMED_URL.format(voice_id=voice_id or DEFAULT_VOICE_ID)
     headers = {
         "xi-api-key": settings.ELEVENLABS_API_KEY,
         "content-type": "application/json",

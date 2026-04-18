@@ -11,31 +11,66 @@ def _serialize(q: dict) -> dict:
         "id": str(q["_id"]),
         "slug": q.get("slug"),
         "text": q["text"],
+        "category": q.get("category", ""),
         "tags": q.get("tags", []),
         "avg_rating": q.get("avg_rating"),
         "response_count": q.get("response_count", 0),
+        "public_response_count": q.get("public_response_count", 0),
     }
 
 
 @router.get("")
 async def list_questions(
-    q: str | None = Query(None, description="keyword search"),
-    limit: int = Query(50, le=200),
+    q: str | None = Query(None, description="substring search"),
+    categories: list[str] = Query(default=[], description="category filter (multi)"),
+    limit: int = Query(300, le=500),
 ):
     db = get_db()
+    filt: dict = {}
+    if categories:
+        filt["category"] = {"$in": categories}
     if q:
-        cursor = db.questions.find(
-            {"$text": {"$search": q}}, {"score": {"$meta": "textScore"}}
-        ).sort([("score", {"$meta": "textScore"})]).limit(limit)
-    else:
-        cursor = db.questions.find().limit(limit)
-    return [_serialize(doc) async for doc in cursor]
+        filt["text"] = {"$regex": q, "$options": "i"}
+    pipeline = [
+        {"$match": filt},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "responses",
+                "let": {"qid": {"$toString": "$_id"}},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$question_id", "$$qid"]},
+                        {"$eq": ["$is_public", True]},
+                    ]}}},
+                    {"$count": "n"},
+                ],
+                "as": "_pub",
+            }
+        },
+        {
+            "$addFields": {
+                "public_response_count": {"$ifNull": [{"$arrayElemAt": ["$_pub.n", 0]}, 0]}
+            }
+        },
+    ]
+    docs = [doc async for doc in db.questions.aggregate(pipeline)]
+    return [_serialize(doc) for doc in docs]
 
 
 @router.get("/random")
-async def random_questions(count: int = Query(3, ge=1, le=5)):
+async def random_questions(
+    count: int = Query(3, ge=1, le=5),
+    categories: list[str] = Query(default=[], description="category filter (multi)"),
+):
     db = get_db()
-    pipeline = [{"$sample": {"size": count}}]
+    match: dict = {}
+    if categories:
+        match["category"] = {"$in": categories}
+    pipeline: list[dict] = []
+    if match:
+        pipeline.append({"$match": match})
+    pipeline.append({"$sample": {"size": count}})
     docs = [doc async for doc in db.questions.aggregate(pipeline)]
     return [_serialize(d) for d in docs]
 
@@ -72,8 +107,6 @@ async def question_responses(question_id: str, limit: int = Query(20, le=100)):
                 "filler_count": ev.get("filler_count"),
                 "avg_rating": r.get("avg_rating"),
                 "rating_count": r.get("rating_count", 0),
-                "like_count": r.get("like_count", 0),
-                "dislike_count": r.get("dislike_count", 0),
                 "created_at": r["created_at"],
             }
         )

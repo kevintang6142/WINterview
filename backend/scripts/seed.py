@@ -1,5 +1,8 @@
 """Seed the questions collection from app/data/questions.json.
 
+Drops the existing questions collection and re-seeds from scratch so the
+PDF-sourced questions replace any old data.
+
 Usage:
     cd backend
     uv run python scripts/seed.py
@@ -25,26 +28,34 @@ def slugify(text: str) -> str:
 
 
 async def main():
-    await ensure_indexes()
     db = get_db()
+    # Drop and re-seed so PDF questions fully replace old data
+    await db.questions.drop()
+    print("Dropped existing questions collection.")
+
     items = json.loads(DATA.read_text())
-    inserted = 0
+    docs = []
+    seen_slugs: set[str] = set()
     for item in items:
         slug = slugify(item["text"])
-        doc = {
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+        docs.append({
             "slug": slug,
             "text": item["text"],
+            "category": item.get("category", ""),
             "tags": item.get("tags", []),
             "response_count": 0,
             "avg_rating": None,
-        }
-        res = await db.questions.update_one(
-            {"slug": slug}, {"$setOnInsert": doc}, upsert=True
-        )
-        if res.upserted_id:
-            inserted += 1
+        })
+
+    if docs:
+        await db.questions.insert_many(docs)
+
+    await ensure_indexes()
     total = await db.questions.count_documents({})
-    print(f"Inserted {inserted} new questions. Total: {total}")
+    print(f"Inserted {len(docs)} questions. Total: {total}")
 
 
 if __name__ == "__main__":
