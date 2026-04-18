@@ -22,6 +22,7 @@ export default function Navbar() {
           <NavLink to="/" end className={navLink}>Home</NavLink>
           <NavLink to="/search" className={navLink}>Search</NavLink>
           {user && <NavLink to="/practice" className={navLink}>Practice</NavLink>}
+          {user && <NavLink to="/rooms" className={navLink}>Rooms</NavLink>}
           {user && <NavLink to="/profile" className={navLink}>Profile</NavLink>}
           <NavLink to="/settings" className={navLink}>Settings</NavLink>
         </div>

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import ensure_indexes
-from .routers import auth, questions, responses, sessions, suggest, users, voice
+from .routers import auth, questions, responses, rooms, sessions, suggest, users, voice
 
 
 @asynccontextmanager
@@ -41,3 +41,4 @@ app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 app.include_router(responses.router, prefix="/responses", tags=["responses"])
 app.include_router(voice.router, prefix="/voice", tags=["voice"])
 app.include_router(suggest.router, prefix="/suggest", tags=["suggest"])
+app.include_router(rooms.router, prefix="/rooms", tags=["rooms"])

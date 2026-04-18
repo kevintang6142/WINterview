@@ -11,6 +11,8 @@ import SessionResult from './pages/SessionResult'
 import Profile from './pages/Profile'
 import ResponseDetail from './pages/ResponseDetail'
 import SettingsPage from './pages/Settings'
+import Rooms from './pages/Rooms'
+import Room from './pages/Room'
 import { ReactNode } from 'react'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -34,6 +36,8 @@ export default function App() {
         <Route path="/session/:id" element={<RequireAuth><SessionRun /></RequireAuth>} />
         <Route path="/session/:id/result" element={<RequireAuth><SessionResult /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/rooms" element={<RequireAuth><Rooms /></RequireAuth>} />
+        <Route path="/rooms/:code" element={<RequireAuth><Room /></RequireAuth>} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
