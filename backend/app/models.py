@@ -49,6 +49,9 @@ class SessionCreate(BaseModel):
     count: int = Field(default=3, ge=1, le=5)
     question_ids: list[str] = []
     categories: list[str] = []
+    # Optional. When set on random mode, backend uses Brave + Gemini to
+    # pick which categories the company leans on and samples from those.
+    company: str | None = None
 
 
 class Session(MongoBase):

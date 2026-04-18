@@ -22,12 +22,14 @@ export default function ResponseCard({ item, onTogglePublic, onDelete }: Props) 
     <div className={card}>
       <Link to={dest} className="text-skin-text hover:no-underline block">
         <div className="font-semibold mb-1.5">{item.question_text}</div>
-        {(item.question_category || item.question_id) && (
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            {item.question_category && <span className={tag}>{item.question_category}</span>}
-            {item.question_id && <MasteryDropdown questionId={item.question_id} stopPropagation />}
-          </div>
-        )}
+      </Link>
+      {(item.question_category || item.question_id) && (
+        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+          {item.question_category && <span className={tag}>{item.question_category}</span>}
+          {item.question_id && <MasteryDropdown questionId={item.question_id} />}
+        </div>
+      )}
+      <Link to={dest} className="text-skin-text hover:no-underline block">
         <div className="text-skin-muted text-sm">{item.transcript_preview}…</div>
       </Link>
       <div className={`${row} flex-wrap gap-3.5 mt-2.5 ${muted}`}>

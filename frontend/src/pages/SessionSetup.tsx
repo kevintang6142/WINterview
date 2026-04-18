@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useMastery, MasteryState } from '../mastery'
 import MasteryDropdown from '../components/MasteryDropdown'
+import CompanyAutocomplete from '../components/CompanyAutocomplete'
 import { main, card, stack, spread, row, muted, tag, btnPrimary, btnGhost } from '../lib/ui'
 import { Question, SessionMode } from '../types'
 
@@ -37,6 +38,7 @@ function loadSetupState(preselect?: string) {
       pickQ: s.pickQ ?? '',
       pickCats: new Set<string>(s.pickCats ?? ALL_CATEGORIES),
       pickMastery: new Set<MasteryState>(s.pickMastery ?? []),
+      company: typeof s.company === 'string' ? s.company : '',
     }
   } catch { return null }
 }
@@ -56,8 +58,35 @@ export default function SessionSetup() {
   const [pickQ, setPickQ] = useState(saved?.pickQ ?? '')
   const [pickCats, setPickCats] = useState<Set<string>>(saved?.pickCats ?? new Set(ALL_CATEGORIES))
   const [pickMastery, setPickMastery] = useState<Set<MasteryState>>(saved?.pickMastery ?? new Set())
+  const [company, setCompany] = useState(saved?.company ?? '')
+  const [companyBusy, setCompanyBusy] = useState(false)
+  const [companyInfo, setCompanyInfo] = useState<{ mode: SessionMode; categories: string[]; reason: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  const applyCompanyFilter = async () => {
+    const q = company.trim()
+    if (!q || companyBusy) return
+    setCompanyBusy(true)
+    setErr(null)
+    try {
+      const res = await api.get(`/suggest/company-categories?q=${encodeURIComponent(q)}`)
+      const cats: string[] = Array.isArray(res?.categories) ? res.categories : []
+      if (cats.length === 0) {
+        setErr(`Couldn't infer categories for "${q}". Try a different name or pick manually.`)
+        setCompanyInfo(null)
+        return
+      }
+      const allowed = cats.filter((c) => ALL_CATEGORIES.includes(c))
+      if (mode === 'random') setRandomCats(new Set(allowed))
+      else setPickCats(new Set(allowed))
+      setCompanyInfo({ mode, categories: allowed, reason: res?.reason ?? null })
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setCompanyBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (mode === 'selected' && questions.length === 0)
@@ -73,8 +102,9 @@ export default function SessionSetup() {
       pickQ,
       pickCats: [...pickCats],
       pickMastery: [...pickMastery],
+      company,
     }))
-  }, [mode, count, randomCats, selected, pickQ, pickCats, pickMastery])
+  }, [mode, count, randomCats, selected, pickQ, pickCats, pickMastery, company])
 
   const pickFiltered = useMemo(() => {
     let result = questions
@@ -121,7 +151,13 @@ export default function SessionSetup() {
       let body: Record<string, unknown>
       if (mode === 'random') {
         const cats = randomCats.size < ALL_CATEGORIES.length ? [...randomCats] : []
-        body = { mode: 'random', count, categories: cats }
+        const trimmedCompany = company.trim()
+        body = {
+          mode: 'random',
+          count,
+          categories: cats,
+          ...(trimmedCompany ? { company: trimmedCompany } : {}),
+        }
       } else {
         body = { mode: 'selected', question_ids: selected }
       }
@@ -144,6 +180,13 @@ export default function SessionSetup() {
 
           {mode === 'random' && (
             <div className={stack}>
+              <CompanyFilterBlock
+                company={company}
+                setCompany={setCompany}
+                busy={companyBusy}
+                onApply={applyCompanyFilter}
+                info={companyInfo?.mode === 'random' ? companyInfo : null}
+              />
               <div>
                 <div className="flex items-center gap-4">
                   <label className={muted}>Number of questions (1–10)</label>
@@ -185,6 +228,15 @@ export default function SessionSetup() {
           <div className={card}>
             <div className={`${spread} mb-2`}>
               <strong>{selected.length} question{selected.length === 1 ? '' : 's'} selected <span className={muted}>(max 10)</span></strong>
+            </div>
+            <div className={`${stack} mb-3`}>
+              <CompanyFilterBlock
+                company={company}
+                setCompany={setCompany}
+                busy={companyBusy}
+                onApply={applyCompanyFilter}
+                info={companyInfo?.mode === 'selected' ? companyInfo : null}
+              />
             </div>
             {/* Search + category filter for pick mode */}
             <div className={`${stack} mb-3`}>
@@ -264,6 +316,57 @@ export default function SessionSetup() {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function CompanyFilterBlock({
+  company, setCompany, busy, onApply, info,
+}: {
+  company: string
+  setCompany: (v: string) => void
+  busy: boolean
+  onApply: () => void
+  info: { categories: string[]; reason: string | null } | null
+}) {
+  const trimmed = company.trim()
+  return (
+    <div>
+      <label className={`${muted} block mb-1.5`}>
+        Company <span className="text-xs">(optional — Brave + Gemini will pick the categories this company tends to ask about)</span>
+      </label>
+      <div className="flex items-stretch gap-2">
+        <div className="flex-1 min-w-0">
+          <CompanyAutocomplete value={company} onChange={setCompany} />
+        </div>
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={!trimmed || busy}
+          title="Filter categories based on what this company typically asks about"
+          className={`${btnPrimary} whitespace-nowrap inline-flex items-center gap-1.5`}
+        >
+          <svg
+            width="14" height="14" viewBox="0 0 20 20" fill="none"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+          >
+            <path d="M3 4.5h14L12 11v5l-4 2v-7L3 4.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+          {busy ? 'Filtering…' : 'Filter by company'}
+        </button>
+      </div>
+      {info && info.categories.length > 0 && (
+        <div className={`${muted} text-xs mt-2`}>
+          <strong>Applied:</strong>{' '}
+          {info.categories.join(', ')}
+          {info.reason && (
+            <>
+              <br />
+              <em>{info.reason}</em>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

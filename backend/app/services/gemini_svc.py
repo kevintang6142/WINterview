@@ -353,6 +353,86 @@ async def generate_questions(
     return out
 
 
+CATEGORY_PICK_PROMPT = """You are helping select behavioral interview categories a candidate
+should practice for a role at {company}.
+
+Here is the full list of available categories:
+{categories}
+
+Here are web-search snippets (Reddit/Glassdoor/blog posts) about {company}'s
+interview process:
+---
+{context}
+---
+
+Pick between 4 and 10 categories from the list above that are most likely to
+come up in {company}'s behavioral loop, based on the snippets and on the
+company's known interview style. Prefer categories the snippets specifically
+discuss or imply.
+
+Return ONLY a JSON object with this exact shape — no prose, no markdown:
+{{"categories": ["<exact category name>", "..."], "reason": "<one sentence explaining the pick>"}}
+
+The category names MUST match entries from the list above verbatim.
+"""
+
+
+async def pick_categories_for_company(
+    company: str, snippets: list[dict], all_categories: list[str]
+) -> dict:
+    """Ask Gemini which subset of `all_categories` likely matters for `company`.
+
+    Returns {"categories": [...], "reason": "..."}.
+    Always returns a subset of all_categories — invalid names are dropped.
+    """
+    cats_text = "\n".join(f"- {c}" for c in all_categories)
+    prompt = CATEGORY_PICK_PROMPT.format(
+        company=company,
+        categories=cats_text,
+        context=_format_context(snippets, limit=12),
+    )
+
+    if not settings.GEMINI_API_KEY:
+        # Fallback: return a broad default mix so the UI stays usable.
+        fallback = [c for c in all_categories if c in {
+            "Leadership", "Teamwork", "Communication", "Problem Solving",
+            "Conflict Resolution", "Initiative", "Adaptability",
+        }]
+        return {"categories": fallback, "reason": "(mock) Gemini key not set; using a broad default mix."}
+
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.4,
+            "responseMimeType": "application/json",
+        },
+    }
+    url = GEMINI_URL.format(model=settings.GEMINI_MODEL, key=settings.GEMINI_API_KEY)
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(url, json=body)
+        r.raise_for_status()
+        data = r.json()
+
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Unexpected Gemini response: {data}") from e
+
+    parsed = _extract_json(text)
+    raw_cats = parsed.get("categories") or []
+    valid = set(all_categories)
+    cats = [c for c in raw_cats if isinstance(c, str) and c in valid]
+    if not cats:
+        # Gemini gave us garbage — fall back to a default mix so we still return something.
+        cats = [c for c in all_categories if c in {
+            "Leadership", "Teamwork", "Communication", "Problem Solving", "Adaptability",
+        }]
+    return {
+        "categories": cats,
+        "reason": (parsed.get("reason") or "").strip() or None,
+    }
+
+
 def _mock_generated_questions(count: int, company: str | None) -> list[dict]:
     base = [
         {"text": "Tell me about a time you disagreed with a teammate and how you resolved it.", "tags": ["conflict"]},
