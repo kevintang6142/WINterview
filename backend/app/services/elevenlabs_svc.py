@@ -63,32 +63,50 @@ async def tts_with_timestamps(text: str) -> dict:
         r.raise_for_status()
         data = r.json()
 
-    # Group characters into word spans for easier frontend highlighting.
+    # Build both an ordered segments list (preserves ALL characters — letters,
+    # numbers, hyphens, punctuation, whitespace) and a parallel words list with
+    # timing. The frontend renders from `segments` directly so there's zero
+    # room for the highlight index to drift on things like "state-of-the-art"
+    # or "1,000".
     alignment = data.get("alignment") or {}
     chars = alignment.get("characters") or []
     starts = alignment.get("character_start_times_seconds") or []
     ends = alignment.get("character_end_times_seconds") or []
+
+    segments: list[dict] = []
     words: list[dict] = []
-    current = ""
-    w_start = 0.0
-    w_end = 0.0
-    for ch, s, e in zip(chars, starts, ends):
-        if ch.isalnum() or ch == "'":
-            if not current:
-                w_start = s
-            current += ch
-            w_end = e
+    buf_text = ""
+    buf_is_word = False
+    buf_start = 0.0
+    buf_end = 0.0
+
+    def _flush():
+        nonlocal buf_text
+        if not buf_text:
+            return
+        if buf_is_word:
+            segments.append({"text": buf_text, "word_index": len(words), "start": buf_start, "end": buf_end})
+            words.append({"word": buf_text, "start": buf_start, "end": buf_end})
         else:
-            if current:
-                words.append({"word": current, "start": w_start, "end": w_end})
-                current = ""
-    if current:
-        words.append({"word": current, "start": w_start, "end": w_end})
+            segments.append({"text": buf_text, "word_index": -1})
+        buf_text = ""
+
+    for ch, s, e in zip(chars, starts, ends):
+        is_word = ch.isalnum() or ch == "'"
+        if buf_text and buf_is_word != is_word:
+            _flush()
+        if not buf_text:
+            buf_start = s
+            buf_is_word = is_word
+        buf_text += ch
+        buf_end = e
+    _flush()
 
     return {
         "audio_base64": data.get("audio_base64"),
         "alignment": alignment,
         "words": words,
+        "segments": segments,
     }
 
 

@@ -195,3 +195,146 @@ def _mock_evaluation(pacing: dict) -> dict:
 def merge_evaluation(gemini_result: dict, pacing: dict) -> dict:
     """Combine AI scores with locally computed pacing stats."""
     return {**gemini_result, **pacing}
+
+
+GENERATE_PROMPT = """You are a senior recruiter assembling a set of REAL behavioral
+interview questions{target_clause}.
+
+Your job: return exactly {count} distinct behavioral interview questions.
+Focus strictly on behavioral — leadership, collaboration, conflict, ownership,
+failure, learning, ambiguity, trade-offs. NOT technical/coding questions.
+
+STRONG PREFERENCE: use questions that are actually reported in the web-search
+snippets below (Glassdoor, LeetCode discuss, Blind, interview blogs). If a
+snippet mentions a specific question a candidate was asked, use it AS-IS
+(you may lightly clean up punctuation/grammar, strip filler like "They asked
+me"). Do NOT invent generic-sounding questions when the snippets provide
+concrete ones.
+
+Only fall back to synthesized questions if the snippets are too high-level to
+contain specific questions. When you do synthesize, match the style of what
+candidates have reported for this context.
+
+{company_guidance}
+
+Web context:
+---
+{context}
+---
+
+Return ONLY a JSON array of objects with this exact shape — no prose, no
+markdown, no preamble:
+[
+  {{"text": "<the full question>", "tags": ["<tag1>", "<tag2>"]}}
+]
+Tags should be short lowercase keywords (leadership, conflict, failure, etc.).
+If the question is drawn from a specific company's known style, include the
+company name (lowercased) as a tag.
+"""
+
+
+COMPANY_STYLE_HINTS = {
+    "amazon": "Amazon behavioral interviews revolve around the 16 Leadership Principles (Customer Obsession, Ownership, Invent and Simplify, Are Right A Lot, Learn and Be Curious, Hire and Develop, Insist on the Highest Standards, Think Big, Bias for Action, Frugality, Earn Trust, Dive Deep, Have Backbone/Disagree and Commit, Deliver Results). Questions almost always map to one of these principles. Prefer concrete reported questions like 'Tell me about a time you disagreed with a decision and committed anyway' or 'Describe a time you had to earn trust from a skeptical stakeholder.'",
+    "google": "Google's behavioral loop tests 'Googleyness' (comfort with ambiguity, intellectual humility, collaboration) and General Cognitive Ability in a behavioral frame. Common reported questions: 'Tell me about a time you had to work with a difficult teammate', 'Describe a time you changed someone's mind', 'Give an example of when you had to make a decision without enough information.'",
+    "meta": "Meta (Facebook) focuses on ownership, conflict resolution, and moving fast. Common reported questions: 'Tell me about a time you disagreed with your manager', 'Describe a time you shipped something fast and iterated', 'Tell me about a time you took on something outside your role.'",
+    "facebook": "Meta (Facebook) focuses on ownership, conflict resolution, and moving fast.",
+    "apple": "Apple behavioral interviews emphasize attention to detail, craft, and high standards. Common reported questions: 'Describe a project you're most proud of and what made it great', 'Tell me about a time you disagreed with a design decision.'",
+    "microsoft": "Microsoft emphasizes growth mindset and collaboration across teams. Common reported questions: 'Tell me about a time you had to learn something new quickly', 'Describe a time you changed your mind based on feedback.'",
+    "netflix": "Netflix centers on their culture memo values — judgment, courage, selflessness, impact. Common reported questions: 'Tell me about a time you made a high-judgment call with limited information', 'Describe a time you gave someone hard feedback.'",
+    "stripe": "Stripe values rigor, ownership, and craft. Expect deep dives on one or two projects. 'Walk me through a project you owned end-to-end.'",
+    "airbnb": "Airbnb emphasizes host/guest empathy and core values. 'Tell me about a time you championed the customer.'",
+}
+
+
+def _company_hint(company: str | None) -> str:
+    if not company:
+        return "Keep the questions broadly applicable to a senior individual-contributor role."
+    key = company.strip().lower()
+    hint = COMPANY_STYLE_HINTS.get(key)
+    if hint:
+        return hint
+    return (
+        f"Tailor the questions to {company}'s interview style if the snippets "
+        f"reveal it; otherwise use generally applicable behavioral questions "
+        f"that match what candidates at similar companies report."
+    )
+
+
+def _format_context(snippets: list[dict], limit: int = 8) -> str:
+    if not snippets:
+        return "(no web context available — rely on general knowledge of behavioral interviewing)"
+    parts = []
+    for i, s in enumerate(snippets[:limit]):
+        title = s.get("title") or ""
+        desc = s.get("description") or ""
+        parts.append(f"[{i + 1}] {title}\n{desc}")
+    return "\n\n".join(parts)
+
+
+async def generate_questions(
+    count: int, company: str | None, snippets: list[dict]
+) -> list[dict]:
+    """Use Gemini to synthesize N behavioral questions from Brave snippets."""
+    target_clause = f" for a role at {company}" if company else ""
+    company_guidance = _company_hint(company)
+
+    prompt = GENERATE_PROMPT.format(
+        count=count,
+        target_clause=target_clause,
+        company_guidance=company_guidance,
+        context=_format_context(snippets, limit=15),
+    )
+
+    if not settings.GEMINI_API_KEY:
+        return _mock_generated_questions(count, company)
+
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.8,
+            "responseMimeType": "application/json",
+        },
+    }
+    url = GEMINI_URL.format(model=settings.GEMINI_MODEL, key=settings.GEMINI_API_KEY)
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(url, json=body)
+        r.raise_for_status()
+        data = r.json()
+
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Unexpected Gemini response: {data}") from e
+
+    m = re.search(r"\[.*\]", text, re.DOTALL)
+    if not m:
+        raise RuntimeError(f"No JSON array in Gemini response: {text[:200]}")
+    arr = json.loads(m.group(0))
+
+    out: list[dict] = []
+    for item in arr[:count]:
+        if not isinstance(item, dict):
+            continue
+        t = (item.get("text") or "").strip()
+        if not t:
+            continue
+        tags = item.get("tags") or []
+        if isinstance(tags, str):
+            tags = [tags]
+        out.append({"text": t, "tags": [str(x).lower() for x in tags]})
+    return out
+
+
+def _mock_generated_questions(count: int, company: str | None) -> list[dict]:
+    base = [
+        {"text": "Tell me about a time you disagreed with a teammate and how you resolved it.", "tags": ["conflict"]},
+        {"text": "Describe a project where you took ownership of something outside your scope.", "tags": ["ownership"]},
+        {"text": "Give an example of a time you had to make a decision under uncertainty.", "tags": ["ambiguity"]},
+        {"text": "Tell me about a time you failed and what you learned.", "tags": ["failure", "learning"]},
+        {"text": "Describe a situation where you had to influence without authority.", "tags": ["influence"]},
+    ]
+    picked = base[:count]
+    if company:
+        for q in picked:
+            q["tags"] = q["tags"] + [company.lower()]
+    return picked

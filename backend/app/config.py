@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    BRAVE_API_KEY: str = ""
+
     BACKEND_CORS_ORIGINS: str = "http://localhost:5173"
 
     @property
