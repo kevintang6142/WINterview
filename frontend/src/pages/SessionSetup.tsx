@@ -331,7 +331,12 @@ function CompanyFilterBlock({
 }) {
   const trimmed = company.trim()
   return (
-    <div>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (trimmed && !busy) onApply()
+      }}
+    >
       <label className={`${muted} block mb-1.5`}>
         Company <span className="text-xs">(optional — Brave + Gemini will pick the categories this company tends to ask about)</span>
       </label>
@@ -340,10 +345,9 @@ function CompanyFilterBlock({
           <CompanyAutocomplete value={company} onChange={setCompany} />
         </div>
         <button
-          type="button"
-          onClick={onApply}
+          type="submit"
           disabled={!trimmed || busy}
-          title="Filter categories based on what this company typically asks about"
+          title="Filter categories based on what this company typically asks about (press Enter)"
           className={`${btnPrimary} whitespace-nowrap inline-flex items-center gap-1.5`}
         >
           <svg
@@ -367,6 +371,6 @@ function CompanyFilterBlock({
           )}
         </div>
       )}
-    </div>
+    </form>
   )
 }
