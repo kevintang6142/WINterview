@@ -18,6 +18,7 @@ class RoomSettingsBody(BaseModel):
     categories: list[str] = []
     company: str | None = None
     max_players: int = Field(default=8, ge=2, le=20)
+    between_rounds_seconds: int = Field(default=3, ge=0, le=30)
 
 
 class CreateRoomBody(BaseModel):
@@ -33,6 +34,7 @@ def _settings_from_body(body: RoomSettingsBody) -> RoomSettings:
         categories=list(body.categories or []),
         company=(body.company.strip() if body.company else None) or None,
         max_players=body.max_players,
+        between_rounds_seconds=body.between_rounds_seconds,
     )
 
 

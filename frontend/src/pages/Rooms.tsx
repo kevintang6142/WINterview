@@ -46,6 +46,7 @@ export default function Rooms() {
   const [questionCount, setQuestionCount] = useState('3')
   const [maxResponseSeconds, setMaxResponseSeconds] = useState('180')
   const [maxPlayers, setMaxPlayers] = useState('8')
+  const [betweenRoundsSeconds, setBetweenRoundsSeconds] = useState('3')
   const [company, setCompany] = useState('')
   const [categories, setCategories] = useState<Set<string>>(new Set(ALL_CATEGORIES))
 
@@ -90,10 +91,12 @@ export default function Rooms() {
     const qc = Number(questionCount)
     const ms = Number(maxResponseSeconds)
     const mp = Number(maxPlayers)
+    const br = Number(betweenRoundsSeconds)
     const issues = [
       rangeError('Questions', qc, RANGES.questions),
       rangeError('Max time per answer', ms, RANGES.seconds),
       rangeError('Max players', mp, RANGES.players),
+      rangeError('Between rounds', br, { min: 0, max: 30 }),
     ].filter(Boolean) as string[]
     if (issues.length) { setErr(issues.join(' · ')); return }
 
@@ -107,6 +110,7 @@ export default function Rooms() {
           question_count: qc,
           max_response_seconds: ms,
           max_players: mp,
+          between_rounds_seconds: br,
           company: company.trim() || null,
           categories: cats,
         },
@@ -204,6 +208,10 @@ export default function Rooms() {
                 <label className={muted}>Max players (2–20)</label>
                 <input type="number" value={maxPlayers}
                   onChange={(e) => setMaxPlayers(e.target.value)}
+                  style={{ width: 80 }} />
+                <label className={muted}>Between rounds (s, 0–30)</label>
+                <input type="number" value={betweenRoundsSeconds}
+                  onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
                   style={{ width: 80 }} />
               </div>
 

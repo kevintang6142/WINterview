@@ -29,12 +29,14 @@ interface RoomState {
     categories: string[]
     company: string | null
     max_players: number
+    between_rounds_seconds: number
   }
   status: 'lobby' | 'running' | 'finished'
   players: ServerPlayer[]
   current_index: number
   current_question: ServerQuestion | null
   round_deadline: number | null
+  intermission_until: number | null
   questions_total: number
 }
 interface LeaderboardEntry {
@@ -208,7 +210,11 @@ export default function Room() {
           <LobbyView state={state} isHost={isHost} send={send} />
         )}
 
-        {state.status === 'running' && state.current_question && (
+        {state.status === 'running' && state.intermission_until && (
+          <IntermissionView state={state} me={user?.id ?? ''} />
+        )}
+
+        {state.status === 'running' && !state.intermission_until && state.current_question && (
           <SessionView
             state={state}
             me={user?.id ?? ''}
@@ -243,6 +249,7 @@ function LobbyView({
   const [maxResponseSeconds, setMaxResponseSeconds] = useState(String(state.settings.max_response_seconds))
   const [company, setCompany] = useState(state.settings.company ?? '')
   const [maxPlayers, setMaxPlayers] = useState(String(state.settings.max_players))
+  const [betweenRoundsSeconds, setBetweenRoundsSeconds] = useState(String(state.settings.between_rounds_seconds ?? 3))
   const [cats, setCats] = useState<Set<string>>(
     new Set(
       state.settings.categories.length > 0 ? state.settings.categories : ALL_CATEGORIES,
@@ -260,28 +267,26 @@ function LobbyView({
 
   // Auto-propagate host edits to everyone (debounced) so the "Save settings"
   // button isn't needed.
-  const sendSettings = (override?: Partial<{
-    qc: number; ms: number; mp: number; co: string; catsArr: string[]
-  }>) => {
+  const sendSettings = () => {
     if (!isHost) return
-    const qc = override?.qc ?? Number(questionCount)
-    const ms = override?.ms ?? Number(maxResponseSeconds)
-    const mp = override?.mp ?? Number(maxPlayers)
-    const co = override?.co ?? company
-    const catsArr = override?.catsArr ?? (cats.size < ALL_CATEGORIES.length ? [...cats] : [])
-    // Only send if all numeric values are valid — otherwise waiting for user
-    // to finish typing.
+    const qc = Number(questionCount)
+    const ms = Number(maxResponseSeconds)
+    const mp = Number(maxPlayers)
+    const br = Number(betweenRoundsSeconds)
+    const catsArr = cats.size < ALL_CATEGORIES.length ? [...cats] : []
     if (!Number.isFinite(qc) || qc < 1 || qc > 10) return
     if (!Number.isFinite(ms) || ms < 30 || ms > 600) return
     if (!Number.isFinite(mp) || mp < 2 || mp > 20) return
+    if (!Number.isFinite(br) || br < 0 || br > 30) return
     send({
       type: 'settings',
       settings: {
         question_count: qc,
         max_response_seconds: ms,
-        company: co.trim() || null,
+        company: company.trim() || null,
         max_players: mp,
         categories: catsArr,
+        between_rounds_seconds: br,
       },
     })
   }
@@ -292,17 +297,19 @@ function LobbyView({
     const t = setTimeout(() => sendSettings(), 400)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionCount, maxResponseSeconds, maxPlayers, company, cats])
+  }, [questionCount, maxResponseSeconds, maxPlayers, betweenRoundsSeconds, company, cats])
 
   // Validate current numeric state for the Start button.
   const qcNum = Number(questionCount)
   const msNum = Number(maxResponseSeconds)
   const mpNum = Number(maxPlayers)
+  const brNum = Number(betweenRoundsSeconds)
   const startErr =
     !isHost ? null :
     !Number.isFinite(qcNum) || qcNum < 1 || qcNum > 10 ? 'Questions must be 1–10' :
     !Number.isFinite(msNum) || msNum < 30 || msNum > 600 ? 'Max answer time must be 30–600s' :
     !Number.isFinite(mpNum) || mpNum < 2 || mpNum > 20 ? 'Max players must be 2–20' :
+    !Number.isFinite(brNum) || brNum < 0 || brNum > 30 ? 'Between-rounds must be 0–30s' :
     cats.size === 0 ? 'Select at least one category' :
     null
 
@@ -344,6 +351,11 @@ function LobbyView({
             <input type="number" value={maxPlayers}
               disabled={!isHost}
               onChange={(e) => setMaxPlayers(e.target.value)}
+              style={{ width: 80 }} />
+            <label className={muted}>Between rounds (s, 0–30)</label>
+            <input type="number" value={betweenRoundsSeconds}
+              disabled={!isHost}
+              onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
               style={{ width: 80 }} />
           </div>
           <div>
@@ -708,36 +720,148 @@ function SessionView({
 
       <div className={card}>
         <div className={`${muted} text-sm mb-2`}>Live leaderboard</div>
-        <MiniLeaderboard state={state} me={me} />
+        <LiveScoreTable state={state} me={me} />
       </div>
     </>
   )
 }
 
-function MiniLeaderboard({ state, me }: { state: RoomState; me: string }) {
+// Pill showing whether a player is ready for this round, disconnected, or
+// still working on it. Replaces the plain "…answering" text.
+function ReadyPill({ player, currentIndex }: { player: ServerPlayer; currentIndex: number }) {
+  if (!player.connected) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-skin-surface-2 text-skin-muted border border-skin-border">
+        <span className="w-1.5 h-1.5 rounded-full bg-skin-muted" />
+        offline
+      </span>
+    )
+  }
+  if (player.ready) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M1.5 5.5 L4 8 L8.5 2.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        ready
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+      <span className="relative inline-flex">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-ping absolute inset-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 relative" />
+      </span>
+      answering Q{currentIndex + 1}
+    </span>
+  )
+}
+
+// Table of all players' per-question scores + total. Visible throughout.
+function LiveScoreTable({ state, me }: { state: RoomState; me: string }) {
+  const qCount = state.questions_total
+  const qIndices = Array.from({ length: qCount }, (_, i) => i)
+
   const rows = useMemo(() => {
     const computed = state.players.map((p) => {
       const scored = p.scores.filter((s): s is number => s != null)
       const total = scored.reduce((a, b) => a + b, 0)
-      return { ...p, total, attempted: scored.length }
+      return { ...p, total }
     })
     computed.sort((a, b) => b.total - a.total)
     return computed
   }, [state])
 
   return (
-    <div className={stack}>
-      {rows.map((p, i) => (
-        <div key={p.user_id}
-          className={`flex items-center gap-2 p-2 rounded-skin ${p.user_id === me ? 'bg-skin-surface-2' : ''}`}>
-          <span className={`${muted} text-sm`} style={{ minWidth: 20 }}>{i + 1}.</span>
-          {p.picture && <img src={p.picture} alt="" className={thumb} />}
-          <span className="font-medium flex-1">{p.name}{p.user_id === me ? ' (you)' : ''}</span>
-          <span className={`${muted} text-xs`}>{p.ready ? '✓ ready' : '…answering'}</span>
-          <span className="font-bold">{p.total.toFixed(1)}</span>
-        </div>
-      ))}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="text-left border-b border-skin-border">
+            <th className={`${muted} font-normal py-2 pr-2`} style={{ minWidth: 32 }}>#</th>
+            <th className={`${muted} font-normal py-2 pr-2`}>Player</th>
+            <th className={`${muted} font-normal py-2 pr-2`}>Status</th>
+            {qIndices.map((i) => (
+              <th key={i}
+                className={`${muted} font-normal py-2 px-2 text-center ${
+                  i === state.current_index ? 'text-skin-accent' : ''
+                }`}>
+                Q{i + 1}
+              </th>
+            ))}
+            <th className={`${muted} font-normal py-2 pl-2 text-right`}>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p, i) => (
+            <tr key={p.user_id}
+              className={`border-b border-skin-border last:border-0 ${
+                p.user_id === me ? 'bg-skin-surface-2' : ''
+              }`}>
+              <td className={`${muted} py-2 pr-2`}>{i + 1}</td>
+              <td className="py-2 pr-2">
+                <div className="flex items-center gap-2">
+                  {p.picture && <img src={p.picture} alt="" className={thumb} />}
+                  <span className="font-medium">
+                    {p.name}{p.user_id === me ? ' (you)' : ''}
+                  </span>
+                </div>
+              </td>
+              <td className="py-2 pr-2">
+                <ReadyPill player={p} currentIndex={state.current_index} />
+              </td>
+              {qIndices.map((qi) => {
+                const s = p.scores[qi]
+                const isCurrent = qi === state.current_index
+                return (
+                  <td key={qi}
+                    className={`py-2 px-2 text-center ${scoreColor(s ?? null)} ${
+                      isCurrent ? 'bg-[var(--blue-50)] dark:bg-[rgba(59,130,246,0.08)]' : ''
+                    }`}>
+                    {s != null ? s.toFixed(1) : isCurrent ? '…' : '—'}
+                  </td>
+                )
+              })}
+              <td className="py-2 pl-2 text-right font-bold">{p.total.toFixed(1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
+  )
+}
+
+// Between-rounds countdown — server tells us when to unfreeze.
+function IntermissionView({ state, me }: { state: RoomState; me: string }) {
+  const target = state.intermission_until ?? 0
+  const [remaining, setRemaining] = useState<number>(
+    Math.max(0, target - Date.now() / 1000),
+  )
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setRemaining(Math.max(0, target - Date.now() / 1000))
+    }, 100)
+    return () => clearInterval(iv)
+  }, [target])
+
+  const seconds = Math.ceil(remaining)
+  const isLast = state.current_index + 1 >= state.questions_total
+  return (
+    <>
+      <div className={card} style={{ textAlign: 'center', padding: 48 }}>
+        <div className={muted}>
+          {isLast ? 'Final scores in' : `Next question in`}
+        </div>
+        <div style={{ fontSize: 72, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>
+          {seconds}
+        </div>
+      </div>
+
+      <div className={card}>
+        <div className={`${muted} text-sm mb-2`}>Live leaderboard</div>
+        <LiveScoreTable state={state} me={me} />
+      </div>
+    </>
   )
 }
 

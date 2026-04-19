@@ -31,6 +31,8 @@ class RoomSettings:
     categories: list[str] = field(default_factory=list)
     company: str | None = None
     max_players: int = 8
+    # Countdown shown between rounds before the next question appears.
+    between_rounds_seconds: int = 3
 
 
 @dataclass
@@ -59,6 +61,8 @@ class Room:
     current_index: int = -1
     # unix seconds when current round auto-advances
     round_deadline: float | None = None
+    # unix seconds until the next question starts (set during between-rounds gap)
+    intermission_until: float | None = None
     # asyncio task for the current round's timeout
     _round_task: asyncio.Task | None = field(default=None, repr=False)
     # asyncio task that closes the room after everyone's gone; cancelled if
@@ -78,6 +82,7 @@ class Room:
                 "categories": self.settings.categories,
                 "company": self.settings.company,
                 "max_players": self.settings.max_players,
+                "between_rounds_seconds": self.settings.between_rounds_seconds,
             },
             "status": self.status,
             "players": [
@@ -98,6 +103,7 @@ class Room:
                 else None
             ),
             "round_deadline": self.round_deadline,
+            "intermission_until": self.intermission_until,
             "questions_total": (
                 len(self.questions) if self.questions else self.settings.question_count
             ),
@@ -237,6 +243,16 @@ class RoomManager:
         if not p:
             return
         p.connected = False
+        # If the host disconnects, pass the crown to the first connected
+        # player so the lobby/game isn't stuck host-less. The original user
+        # can reclaim their slot on reconnect but won't get host back.
+        if room.host_user_id == user_id:
+            next_host = next(
+                (pid for pid, pl in room.players.items() if pl.connected),
+                None,
+            )
+            if next_host:
+                room.host_user_id = next_host
         # Don't remove from players so they can reconnect mid-game.
         await self._snapshot(room)
         # If nobody's connected, start the 10s grace timer instead of closing
@@ -358,6 +374,7 @@ class RoomManager:
         if room.current_index + 1 >= len(room.questions):
             room.status = "finished"
             room.round_deadline = None
+            room.intermission_until = None
             await self.broadcast(
                 room,
                 {
@@ -367,6 +384,19 @@ class RoomManager:
                 },
             )
             return
+
+        # Between-rounds intermission — clients render a countdown.
+        gap = max(0, int(room.settings.between_rounds_seconds or 0))
+        if gap > 0:
+            room.intermission_until = time.time() + gap
+            room.round_deadline = None
+            await self._snapshot(room)
+            try:
+                await asyncio.sleep(gap)
+            except asyncio.CancelledError:
+                return
+
+        room.intermission_until = None
         room.current_index += 1
         for p in room.players.values():
             p.ready = False
