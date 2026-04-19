@@ -16,7 +16,7 @@ export const card =
   'bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin'
 
 // ── Utility classes ───────────────────────────────────────────────────────────
-export const row    = 'flex items-center gap-2.5'
+export const row    = 'flex items-center gap-2.5 flex-wrap'
 export const spread = 'flex justify-between items-center gap-2.5 flex-wrap'
 export const stack  = 'flex flex-col gap-2.5'
 export const muted  = 'text-skin-muted text-[13px]'
