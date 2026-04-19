@@ -270,14 +270,6 @@ export default function ResponseDetail() {
             )}
           </div>
 
-          {isOwner && (
-            <div className={`${row} gap-2 mt-3`}>
-              <button className={btnSmGhost} onClick={togglePublic}>
-                {data.is_public ? 'Make private' : 'Make public'}
-              </button>
-            </div>
-          )}
-
           <div className={`${card} bg-skin-surface-2 mt-3.5`}>
             <strong>Response</strong>
             <p className="whitespace-pre-wrap mt-1.5">{data.transcript}</p>
