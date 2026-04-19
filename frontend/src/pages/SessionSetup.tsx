@@ -53,7 +53,8 @@ export default function SessionSetup() {
   const saved = loadSetupState(preselect)
 
   const [mode, setMode] = useState<SessionMode>(preselect ? 'selected' : (saved?.mode ?? 'random'))
-  const [count, setCount] = useState(saved?.count ?? 3)
+  // Keep raw input text so the user can type anything — validate at Start.
+  const [count, setCount] = useState(String(saved?.count ?? 3))
   const [randomCats, setRandomCats] = useState<Set<string>>(saved?.randomCats ?? new Set(ALL_CATEGORIES))
   const [questions, setQuestions] = useState<Question[]>([])
   const [selected, setSelected] = useState<string[]>(preselect ? [preselect] : (saved?.selected ?? []))
@@ -153,21 +154,27 @@ export default function SessionSetup() {
     })
 
   const start = async () => {
-    setBusy(true); setErr(null)
-    try {
-      let body: Record<string, unknown>
-      if (mode === 'random') {
-        const cats = randomCats.size < ALL_CATEGORIES.length ? [...randomCats] : []
-        const trimmedCompany = company.trim()
-        body = {
-          mode: 'random',
-          count,
-          categories: cats,
-          ...(trimmedCompany ? { company: trimmedCompany } : {}),
-        }
-      } else {
-        body = { mode: 'selected', question_ids: selected }
+    setErr(null)
+    let body: Record<string, unknown>
+    if (mode === 'random') {
+      const n = Number(count)
+      if (!Number.isFinite(n) || n < 1 || n > 10) {
+        setErr('Number of questions must be between 1 and 10.')
+        return
       }
+      const cats = randomCats.size < ALL_CATEGORIES.length ? [...randomCats] : []
+      const trimmedCompany = company.trim()
+      body = {
+        mode: 'random',
+        count: n,
+        categories: cats,
+        ...(trimmedCompany ? { company: trimmedCompany } : {}),
+      }
+    } else {
+      body = { mode: 'selected', question_ids: selected }
+    }
+    setBusy(true)
+    try {
       const sess = await api.post('/sessions', body)
       sessionStorage.setItem(`session:${sess.id}`, JSON.stringify(sess))
       nav(`/session/${sess.id}`)
@@ -197,8 +204,8 @@ export default function SessionSetup() {
               <div>
                 <div className="flex items-center gap-4">
                   <label className={muted}>Number of questions (1–10)</label>
-                  <input type="number" min={1} max={10} value={count}
-                    onChange={(e) => setCount(Math.max(1, Math.min(10, Number(e.target.value))))}
+                  <input type="number" value={count}
+                    onChange={(e) => setCount(e.target.value)}
                     style={{ width: 80 }} />
                 </div>
               </div>

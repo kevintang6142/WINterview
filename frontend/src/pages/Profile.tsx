@@ -110,7 +110,7 @@ export default function Profile() {
               )}
               <div className="ml-auto flex gap-2">
                 <button className={btnSmGhost} onClick={() => togglePublic(r.id, r.is_public)}>
-                  {r.is_public ? 'Make private' : 'Share publicly'}
+                  {r.is_public ? 'Make private' : 'Make public'}
                 </button>
                 <button className={btnDanger} onClick={() => deleteResponse(r.id)}>Delete</button>
               </div>

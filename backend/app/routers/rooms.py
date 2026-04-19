@@ -21,6 +21,7 @@ class RoomSettingsBody(BaseModel):
 
 
 class CreateRoomBody(BaseModel):
+    name: str = Field(default="", min_length=1, max_length=40)
     is_public: bool = True
     settings: RoomSettingsBody = RoomSettingsBody()
 
@@ -39,9 +40,15 @@ def _settings_from_body(body: RoomSettingsBody) -> RoomSettings:
 @router.post("")
 async def create_room(body: CreateRoomBody, user: dict = Depends(current_user)):
     settings = _settings_from_body(body.settings)
-    room = await manager.create(
-        host_user_id=user["_id"], is_public=body.is_public, settings=settings
-    )
+    try:
+        room = await manager.create(
+            host_user_id=user["_id"],
+            is_public=body.is_public,
+            settings=settings,
+            name=body.name,
+        )
+    except ValueError as e:
+        raise HTTPException(409, str(e))
     return {"code": room.code, "room": room.public_state()}
 
 
@@ -101,6 +108,13 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
 
     room = manager.get(code)
     if not room:
+        # Room no longer exists — clear any stale "currently in this room"
+        # pointer on the user so the frontend won't keep nagging them to
+        # return to a dead room.
+        if (user_doc.get("current_room_code") or "").upper() == code.upper():
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None}}
+            )
         await websocket.close(code=4404)
         return
 
@@ -118,6 +132,12 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
         await websocket.send_json({"type": "error", "message": str(e)})
         await websocket.close()
         return
+
+    # Persist "currently in this room" on the user doc. Cleared only on
+    # explicit leave (below) or when rejoining a dead room (above).
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": room.code}}
+    )
 
     mtype: str | None = None
     try:
@@ -169,9 +189,12 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
     except Exception as e:
         print(f"[rooms ws] unexpected: {e}")
     finally:
-        # If user explicitly sent "leave", remove them. Otherwise just
-        # mark disconnected so they can rejoin with the same user id.
+        # If user explicitly sent "leave", remove them and clear the DB
+        # pointer. Otherwise just mark disconnected so they can rejoin.
         if mtype == "leave":
             await manager.remove(room, user_id)
+            await db.users.update_one(
+                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None}}
+            )
         else:
             await manager.mark_disconnected(room, user_id)

@@ -6,6 +6,7 @@ interface AuthCtxValue {
   user: User | null
   login: (credential: string) => Promise<User>
   logout: () => void
+  refresh: () => Promise<void>
   ready: boolean
 }
 
@@ -13,6 +14,7 @@ const AuthCtx = createContext<AuthCtxValue>({
   user: null,
   login: async () => { throw new Error('not ready') },
   logout: () => {},
+  refresh: async () => {},
   ready: false,
 })
 
@@ -46,8 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  const refresh = async () => {
+    const token = localStorage.getItem('winterview.token')
+    if (!token) return
+    try {
+      const u = await api.get('/auth/me')
+      setUser(u)
+    } catch {
+      // ignore — keep existing user state
+    }
+  }
+
   return (
-    <AuthCtx.Provider value={{ user, login, logout, ready }}>
+    <AuthCtx.Provider value={{ user, login, logout, refresh, ready }}>
       {children}
     </AuthCtx.Provider>
   )

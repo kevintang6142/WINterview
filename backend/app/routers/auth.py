@@ -52,6 +52,7 @@ async def google_login(body: GoogleLoginBody):
             "name": name,
             "picture": picture,
             "karma": user_doc.get("karma", 0) if user_doc else 0,
+            "current_room_code": user_doc.get("current_room_code") if user_doc else None,
         },
     }
 
@@ -64,4 +65,5 @@ async def me(user: dict = Depends(current_user)):
         "name": user.get("name"),
         "picture": user.get("picture"),
         "karma": user.get("karma", 0),
+        "current_room_code": user.get("current_room_code"),
     }

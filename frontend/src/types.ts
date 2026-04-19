@@ -4,6 +4,7 @@ export interface User {
   email: string
   picture?: string
   karma?: number
+  current_room_code?: string | null
 }
 
 export interface Question {

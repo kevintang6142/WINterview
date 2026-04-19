@@ -48,6 +48,7 @@ class Player:
 @dataclass
 class Room:
     code: str
+    name: str
     is_public: bool
     host_user_id: str
     settings: RoomSettings = field(default_factory=RoomSettings)
@@ -65,6 +66,7 @@ class Room:
     def public_state(self) -> dict:
         return {
             "code": self.code,
+            "name": self.name,
             "is_public": self.is_public,
             "host_user_id": self.host_user_id,
             "settings": {
@@ -137,6 +139,7 @@ class RoomManager:
             out.append(
                 {
                     "code": r.code,
+                    "name": r.name,
                     "host_name": host.name if host else None,
                     "player_count": len(r.players),
                     "max_players": r.settings.max_players,
@@ -152,9 +155,23 @@ class RoomManager:
 
     # ---------- Lifecycle ----------
     async def create(
-        self, *, host_user_id: str, is_public: bool, settings: RoomSettings
+        self,
+        *,
+        host_user_id: str,
+        is_public: bool,
+        settings: RoomSettings,
+        name: str,
     ) -> Room:
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("Room name is required")
+        if len(name) > 40:
+            raise ValueError("Room name must be 40 characters or fewer")
         async with self._lock:
+            # Name must be unique among active rooms (case-insensitive).
+            existing_names = {r.name.lower() for r in self.rooms.values()}
+            if name.lower() in existing_names:
+                raise ValueError(f"A room named '{name}' already exists")
             for _ in range(20):
                 code = _gen_code()
                 if code not in self.rooms:
@@ -163,6 +180,7 @@ class RoomManager:
                 raise RuntimeError("Could not generate unique room code")
             room = Room(
                 code=code,
+                name=name,
                 is_public=is_public,
                 host_user_id=host_user_id,
                 settings=settings,

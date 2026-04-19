@@ -39,7 +39,7 @@ export default function ResponseCard({ item, onTogglePublic, onDelete }: Props) 
           <div className="ml-auto flex gap-2">
             {onTogglePublic && (
               <button className={btnSmGhost} onClick={() => onTogglePublic(item.id, !!item.is_public)}>
-                {item.is_public ? 'Make private' : 'Share publicly'}
+                {item.is_public ? 'Make private' : 'Make public'}
               </button>
             )}
             {onDelete && (

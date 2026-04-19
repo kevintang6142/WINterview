@@ -116,7 +116,7 @@ export default function SessionResult() {
 
               <div className={`${row} mt-3.5`}>
                 <button className={r.is_public ? btnDanger : btnPrimary} onClick={() => togglePublic(r.id, r.is_public)}>
-                  {r.is_public ? 'Make private' : 'Share publicly (anonymous)'}
+                  {r.is_public ? 'Make private' : 'Make public'}
                 </button>
                 <Link to={`/response/${r.id}`} className={btnGhost}>View shareable page</Link>
               </div>

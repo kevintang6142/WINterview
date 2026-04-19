@@ -273,7 +273,7 @@ export default function ResponseDetail() {
           {isOwner && (
             <div className={`${row} gap-2 mt-3`}>
               <button className={btnSmGhost} onClick={togglePublic}>
-                {data.is_public ? 'Make private' : 'Share publicly'}
+                {data.is_public ? 'Make private' : 'Make public'}
               </button>
             </div>
           )}
@@ -394,7 +394,7 @@ export default function ResponseDetail() {
         {isOwner && (
           <div className={`${card} ${row} gap-2`}>
             <button className={btnSmGhost} onClick={togglePublic}>
-              {data.is_public ? 'Make private' : 'Share publicly'}
+              {data.is_public ? 'Make private' : 'Make public'}
             </button>
             <button className={btnDanger} onClick={deleteResponse}>Delete</button>
           </div>

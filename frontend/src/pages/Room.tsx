@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
-import { main, card, stack, spread, muted, btnPrimary, btnGhost, thumb } from '../lib/ui'
+import {
+  main, card, stack, spread, muted, tag, btnPrimary, btnGhost, thumb, ttsWord, ttsActive,
+} from '../lib/ui'
 import { ALL_CATEGORIES } from '../lib/categories'
 import { Evaluation } from '../types'
 
@@ -15,11 +17,10 @@ interface ServerPlayer {
   ready: boolean
   connected: boolean
 }
-
 interface ServerQuestion { id: string; text: string; category: string }
-
 interface RoomState {
   code: string
+  name: string
   is_public: boolean
   host_user_id: string
   settings: {
@@ -36,7 +37,6 @@ interface RoomState {
   round_deadline: number | null
   questions_total: number
 }
-
 interface LeaderboardEntry {
   user_id: string
   name: string
@@ -46,29 +46,67 @@ interface LeaderboardEntry {
   avg: number
 }
 
-// ── WebSocket URL ────────────────────────────────────────────────────────────
+// Per-question evaluation the client keeps *locally* for the final summary.
+// (Server only broadcasts overall to other players — feedback stays private.)
+interface StoredEval {
+  question_index: number
+  question_text: string
+  question_category: string
+  evaluation: Evaluation | null
+  transcript: string
+}
+
+interface WordTiming { start: number; end: number; word: string }
+interface Segment { text: string; word_index: number }
+
 function wsUrl(code: string): string {
   const base = (api.base || '').replace(/^http/, 'ws')
   const token = localStorage.getItem('winterview.token') || ''
   return `${base}/rooms/${code}/ws?token=${encodeURIComponent(token)}`
 }
 
-// ── Score color (matches problem index) ──────────────────────────────────────
-function scoreColor(score: number | null): string {
+function scoreColor(score: number | null | undefined): string {
   if (score == null) return 'text-skin-muted'
   if (score >= 4) return 'text-emerald-700 dark:text-emerald-400'
   if (score >= 3) return 'text-amber-700 dark:text-amber-400'
   return 'text-red-700 dark:text-red-400'
 }
 
+function fmt(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  const m = Math.floor(s / 60)
+  return `${m}:${String(s % 60).padStart(2, '0')}`
+}
+
+// The same mic base style practice mode uses — keep them visually identical.
+const micBase =
+  'w-24 h-24 rounded-full text-sm inline-flex items-center justify-center ' +
+  'font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-0'
+
+// Rubric metric ordering — mirrors SessionResult.tsx.
+const METRIC_KEYS: { key: keyof Evaluation; label: string }[] = [
+  { key: 'structure_star',    label: 'Structure (STAR)' },
+  { key: 'specificity_depth', label: 'Specificity & Depth' },
+  { key: 'delivery_pacing',   label: 'Delivery (Pacing & Fillers)' },
+  { key: 'relevance',         label: 'Relevance to Question' },
+  { key: 'reflection',        label: 'Reflection & Self-Awareness' },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Top-level Room component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function Room() {
   const { code = '' } = useParams()
   const nav = useNavigate()
-  const { user } = useAuth()
+  const { user, refresh: refreshAuth } = useAuth()
   const [state, setState] = useState<RoomState | null>(null)
   const [finalBoard, setFinalBoard] = useState<LeaderboardEntry[] | null>(null)
   const [wsError, setWsError] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+
+  // Accumulate this player's per-question evaluations across the session
+  // so we can show full feedback only at the end.
+  const [storedEvals, setStoredEvals] = useState<StoredEval[]>([])
 
   useEffect(() => {
     const ws = new WebSocket(wsUrl(code))
@@ -82,8 +120,14 @@ export default function Room() {
       } else if (msg.type === 'error') setWsError(msg.message)
     }
     ws.onclose = (ev) => {
-      if (ev.code === 4404) setWsError('Room not found. It may have ended.')
-      else if (ev.code === 4401) setWsError('Please sign in again.')
+      if (ev.code === 4404) {
+        setWsError('Room not found. It may have ended.')
+        // Server already cleared current_room_code — update local auth so the
+        // resume banner on /rooms goes away.
+        refreshAuth?.()
+      } else if (ev.code === 4401) {
+        setWsError('Please sign in again.')
+      }
     }
     return () => { try { ws.close() } catch {} }
   }, [code])
@@ -93,10 +137,25 @@ export default function Room() {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg))
   }
 
+  // "Leave" = clear the room from the server + DB + navigate away.
   const leave = () => {
     send({ type: 'leave' })
     try { wsRef.current?.close() } catch {}
+    refreshAuth?.()
     nav('/rooms')
+  }
+
+  // "Back" = close the WS but stay in the room on the server. User can return.
+  const back = () => {
+    try { wsRef.current?.close() } catch {}
+    nav('/rooms')
+  }
+
+  const recordEval = (e: StoredEval) => {
+    setStoredEvals((arr) => {
+      const without = arr.filter((x) => x.question_index !== e.question_index)
+      return [...without, e].sort((a, b) => a.question_index - b.question_index)
+    })
   }
 
   if (wsError) {
@@ -109,13 +168,8 @@ export default function Room() {
       </div>
     )
   }
-
   if (!state) {
-    return (
-      <div className={main}>
-        <div className={card}>Connecting to room <code>{code}</code>…</div>
-      </div>
-    )
+    return <div className={main}><div className={card}>Connecting to room <code>{code}</code>…</div></div>
   }
 
   const isHost = user?.id === state.host_user_id
@@ -124,18 +178,22 @@ export default function Room() {
     <div className={main}>
       <div className={stack}>
         <div className={card}>
-          <div className={`${spread} flex-wrap gap-2`}>
+          <div className={`${spread} flex-wrap gap-3`}>
             <div>
-              <div className={`${muted} text-xs`}>Room code</div>
-              <div style={{ fontFamily: 'monospace', letterSpacing: '0.15em', fontSize: 22, fontWeight: 700 }}>
-                {state.code}
+              <div className="text-xl font-extrabold leading-tight">{state.name}</div>
+              <div className={`${muted} text-xs mt-0.5`}>
+                <span style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{state.code}</span>
+                {' · '}{state.is_public ? 'Public' : 'Private'}
+                {' · '}{state.status}
               </div>
             </div>
             <div className={`${muted} text-sm text-right`}>
-              <div>{state.is_public ? 'Public' : 'Private'} · {state.status}</div>
-              <div>{state.players.length}/{state.settings.max_players} players</div>
+              {state.players.length}/{state.settings.max_players} players
             </div>
-            <button className={btnGhost} onClick={leave}>Leave</button>
+            <div className="flex gap-2">
+              <button className={btnGhost} onClick={back}>Back</button>
+              <button className={btnGhost} onClick={leave}>Leave</button>
+            </div>
           </div>
         </div>
 
@@ -148,54 +206,98 @@ export default function Room() {
             state={state}
             me={user?.id ?? ''}
             send={send}
-            key={state.current_index}   // reset on each round
+            recordEval={recordEval}
+            key={state.current_index}
           />
         )}
 
         {state.status === 'finished' && finalBoard && (
-          <FinalView state={state} leaderboard={finalBoard} />
+          <FinalView
+            state={state}
+            leaderboard={finalBoard}
+            myEvals={storedEvals}
+            onBack={back}
+            onLeave={leave}
+          />
         )}
       </div>
     </div>
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Lobby
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 function LobbyView({
   state, isHost, send,
 }: { state: RoomState; isHost: boolean; send: (m: any) => void }) {
-  const [questionCount, setQuestionCount] = useState(state.settings.question_count)
-  const [maxResponseSeconds, setMaxResponseSeconds] = useState(state.settings.max_response_seconds)
+  // Raw strings so the user can type anything. Validate at propagate time.
+  const [questionCount, setQuestionCount] = useState(String(state.settings.question_count))
+  const [maxResponseSeconds, setMaxResponseSeconds] = useState(String(state.settings.max_response_seconds))
   const [company, setCompany] = useState(state.settings.company ?? '')
-  const [maxPlayers, setMaxPlayers] = useState(state.settings.max_players)
+  const [maxPlayers, setMaxPlayers] = useState(String(state.settings.max_players))
   const [cats, setCats] = useState<Set<string>>(
     new Set(
       state.settings.categories.length > 0 ? state.settings.categories : ALL_CATEGORIES,
     ),
   )
 
-  const toggleCat = (cat: string) =>
+  const toggleCat = (cat: string) => {
+    if (!isHost) return
     setCats((prev) => {
       const n = new Set(prev)
       if (n.has(cat)) n.delete(cat); else n.add(cat)
       return n
     })
+  }
 
-  const saveSettings = () => {
-    const catsArr = cats.size < ALL_CATEGORIES.length ? [...cats] : []
+  // Auto-propagate host edits to everyone (debounced) so the "Save settings"
+  // button isn't needed.
+  const sendSettings = (override?: Partial<{
+    qc: number; ms: number; mp: number; co: string; catsArr: string[]
+  }>) => {
+    if (!isHost) return
+    const qc = override?.qc ?? Number(questionCount)
+    const ms = override?.ms ?? Number(maxResponseSeconds)
+    const mp = override?.mp ?? Number(maxPlayers)
+    const co = override?.co ?? company
+    const catsArr = override?.catsArr ?? (cats.size < ALL_CATEGORIES.length ? [...cats] : [])
+    // Only send if all numeric values are valid — otherwise waiting for user
+    // to finish typing.
+    if (!Number.isFinite(qc) || qc < 1 || qc > 10) return
+    if (!Number.isFinite(ms) || ms < 30 || ms > 600) return
+    if (!Number.isFinite(mp) || mp < 2 || mp > 20) return
     send({
       type: 'settings',
       settings: {
-        question_count: questionCount,
-        max_response_seconds: maxResponseSeconds,
-        company: company.trim() || null,
-        max_players: maxPlayers,
+        question_count: qc,
+        max_response_seconds: ms,
+        company: co.trim() || null,
+        max_players: mp,
         categories: catsArr,
       },
     })
   }
+
+  // Debounced propagation whenever any host-editable value changes.
+  useEffect(() => {
+    if (!isHost) return
+    const t = setTimeout(() => sendSettings(), 400)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionCount, maxResponseSeconds, maxPlayers, company, cats])
+
+  // Validate current numeric state for the Start button.
+  const qcNum = Number(questionCount)
+  const msNum = Number(maxResponseSeconds)
+  const mpNum = Number(maxPlayers)
+  const startErr =
+    !isHost ? null :
+    !Number.isFinite(qcNum) || qcNum < 1 || qcNum > 10 ? 'Questions must be 1–10' :
+    !Number.isFinite(msNum) || msNum < 30 || msNum > 600 ? 'Max answer time must be 30–600s' :
+    !Number.isFinite(mpNum) || mpNum < 2 || mpNum > 20 ? 'Max players must be 2–20' :
+    cats.size === 0 ? 'Select at least one category' :
+    null
 
   return (
     <>
@@ -216,23 +318,25 @@ function LobbyView({
       </div>
 
       <div className={card}>
-        <h3 className="mt-0 mb-2">Settings {!isHost && <span className={`${muted} text-xs font-normal`}>(host-only)</span>}</h3>
+        <h3 className="mt-0 mb-2">
+          Settings {!isHost && <span className={`${muted} text-xs font-normal`}>(host-only)</span>}
+        </h3>
         <div className={stack}>
           <div className="flex items-center gap-4 flex-wrap">
             <label className={muted}>Questions (1–10)</label>
-            <input type="number" min={1} max={10} value={questionCount}
+            <input type="number" value={questionCount}
               disabled={!isHost}
-              onChange={(e) => setQuestionCount(Math.max(1, Math.min(10, Number(e.target.value))))}
+              onChange={(e) => setQuestionCount(e.target.value)}
               style={{ width: 80 }} />
-            <label className={muted}>Max answer time (s)</label>
-            <input type="number" min={30} max={600} step={15} value={maxResponseSeconds}
+            <label className={muted}>Max answer time (s, 30–600)</label>
+            <input type="number" value={maxResponseSeconds}
               disabled={!isHost}
-              onChange={(e) => setMaxResponseSeconds(Math.max(30, Math.min(600, Number(e.target.value))))}
+              onChange={(e) => setMaxResponseSeconds(e.target.value)}
               style={{ width: 90 }} />
-            <label className={muted}>Max players</label>
-            <input type="number" min={2} max={20} value={maxPlayers}
+            <label className={muted}>Max players (2–20)</label>
+            <input type="number" value={maxPlayers}
               disabled={!isHost}
-              onChange={(e) => setMaxPlayers(Math.max(2, Math.min(20, Number(e.target.value))))}
+              onChange={(e) => setMaxPlayers(e.target.value)}
               style={{ width: 80 }} />
           </div>
           <div>
@@ -253,7 +357,7 @@ function LobbyView({
                 <button
                   key={cat}
                   type="button"
-                  onClick={() => isHost && toggleCat(cat)}
+                  onClick={() => toggleCat(cat)}
                   disabled={!isHost}
                   className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
                     cats.has(cat)
@@ -275,12 +379,13 @@ function LobbyView({
             </div>
           </div>
           {isHost && (
-            <div className="flex gap-2">
-              <button className={btnGhost} onClick={saveSettings}>Save settings</button>
-              <button className={btnPrimary} onClick={() => send({ type: 'start' })}
-                disabled={state.players.length < 1}>
+            <div className="flex gap-2 items-center flex-wrap">
+              <button className={btnPrimary}
+                onClick={() => send({ type: 'start' })}
+                disabled={!!startErr}>
                 Start competition
               </button>
+              {startErr && <span className="text-skin-danger text-sm">{startErr}</span>}
             </div>
           )}
           {!isHost && (
@@ -294,61 +399,92 @@ function LobbyView({
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// In-session: play TTS, record, submit score, then wait
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// In-session: play TTS (word-highlighted), record, submit score
+// ─────────────────────────────────────────────────────────────────────────────
 type Phase = 'playing' | 'ready-to-record' | 'recording' | 'processing' | 'submitted' | 'error'
 
 function SessionView({
-  state, me, send,
-}: { state: RoomState; me: string; send: (m: any) => void }) {
+  state, me, send, recordEval,
+}: {
+  state: RoomState
+  me: string
+  send: (m: any) => void
+  recordEval: (e: StoredEval) => void
+}) {
   const q = state.current_question!
   const [phase, setPhase] = useState<Phase>('playing')
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [score, setScore] = useState<number | null>(null)
-  const [transcript, setTranscript] = useState('')
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
+  const [alignment, setAlignment] = useState<{ words: WordTiming[]; segments: Segment[] } | null>(null)
+  const [highlightIndex, setHighlightIndex] = useState(-1)
 
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const startedAtRef = useRef(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const rafRef = useRef<number>(0)
   const tickRef = useRef<number | null>(null)
-  const stopRef = useRef<number | null>(null)
   const hardCapRef = useRef<number | null>(null)
 
-  // Per-round cleanup
   useEffect(() => {
     setPhase('playing')
     setScore(null)
-    setTranscript('')
     setEvaluation(null)
     setError(null)
     setElapsed(0)
+    setAlignment(null)
+    setHighlightIndex(-1)
     chunksRef.current = []
-
-    // Hard cap: auto-stop the recording when max_response_seconds elapses.
-    // Play TTS first; if TTS fails we fall back to immediate record state.
     playTTS()
-
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current)
-      if (stopRef.current) window.clearTimeout(stopRef.current)
       if (hardCapRef.current) window.clearTimeout(hardCapRef.current)
+      cancelAnimationFrame(rafRef.current)
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
       if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.id])
 
   const playTTS = async () => {
     try {
       const resp = await api.post('/voice/tts-timed', { text: q.text })
-      const url = `data:audio/mpeg;base64,${resp.audio_base64}`
-      const audio = new Audio(url)
+      const ws: WordTiming[] = resp.words || []
+      const segs: Segment[] = resp.segments || []
+      setAlignment({ words: ws, segments: segs })
+      const audio = new Audio(`data:audio/mpeg;base64,${resp.audio_base64}`)
       audioRef.current = audio
-      audio.onended = () => { audioRef.current = null; setPhase('ready-to-record'); startRecording() }
-      audio.onerror = () => { audioRef.current = null; setPhase('ready-to-record'); startRecording() }
+      let lastIdx = -1
+      const tick = () => {
+        if (!audioRef.current) return
+        const t = audio.currentTime
+        let idx = -1
+        for (let i = 0; i < ws.length; i++) {
+          if (t < ws[i].start) break
+          if (t <= ws[i].end) { idx = i; break }
+          idx = i
+        }
+        if (idx !== lastIdx) { lastIdx = idx; setHighlightIndex(idx) }
+        rafRef.current = requestAnimationFrame(tick)
+      }
+      audio.onplay = () => { cancelAnimationFrame(rafRef.current); rafRef.current = requestAnimationFrame(tick) }
+      audio.onpause = () => cancelAnimationFrame(rafRef.current)
+      audio.onended = () => {
+        cancelAnimationFrame(rafRef.current)
+        setHighlightIndex(-1)
+        audioRef.current = null
+        setPhase('ready-to-record')
+        startRecording()
+      }
+      audio.onerror = () => {
+        cancelAnimationFrame(rafRef.current)
+        audioRef.current = null
+        setPhase('ready-to-record')
+        startRecording()
+      }
       await audio.play()
     } catch {
       setPhase('ready-to-record')
@@ -366,8 +502,7 @@ function SessionView({
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
         const duration = (Date.now() - startedAtRef.current) / 1000
-        const blob = new Blob(chunksRef.current, { type: mime })
-        handleAudio(blob, duration)
+        handleAudio(new Blob(chunksRef.current, { type: mime }), duration)
       }
       mediaRef.current = rec
       startedAtRef.current = Date.now()
@@ -386,8 +521,8 @@ function SessionView({
   }
 
   const stopRecording = () => {
-    if (tickRef.current) window.clearInterval(tickRef.current)
-    if (hardCapRef.current) window.clearTimeout(hardCapRef.current)
+    if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
+    if (hardCapRef.current) { window.clearTimeout(hardCapRef.current); hardCapRef.current = null }
     if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop()
   }
 
@@ -397,11 +532,11 @@ function SessionView({
       const fd = new FormData()
       fd.append('audio', blob, 'answer.webm')
       const stt = await api.postForm('/voice/stt', fd)
-      setTranscript(stt.text ?? '')
+      const transcript = stt.text ?? ''
       const saved = await api.post('/responses', {
         session_id: `room:${state.code}`,
         question_id: q.id,
-        transcript: stt.text ?? '',
+        transcript,
         duration_seconds: duration,
         word_timestamps: stt.word_timestamps ?? [],
       })
@@ -409,6 +544,13 @@ function SessionView({
       const overall = ev?.overall ?? 0
       setScore(overall)
       setEvaluation(ev ?? null)
+      recordEval({
+        question_index: state.current_index,
+        question_text: q.text,
+        question_category: q.category || '',
+        evaluation: ev ?? null,
+        transcript,
+      })
       send({ type: 'submit_score', question_index: state.current_index, overall })
       setPhase('submitted')
     } catch (e: any) {
@@ -418,94 +560,107 @@ function SessionView({
     }
   }
 
-  const skip = () => {
-    stopRecording()
-    send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
-    setPhase('submitted')
-    setScore(0)
-  }
+  // Practice-style rendering: wrap each segment so the spoken word highlights.
+  const questionNode = useMemo(() => {
+    const segs = alignment?.segments
+    if (!segs || segs.length === 0) return <span>{q.text}</span>
+    return segs.map((seg, i) => {
+      if (seg.word_index === -1) return <span key={i}>{seg.text}</span>
+      const isActive = phase === 'playing' && seg.word_index === highlightIndex
+      return (
+        <span key={i} className={phase === 'playing' ? (isActive ? ttsActive : ttsWord) : ''}>
+          {seg.text}
+        </span>
+      )
+    })
+  }, [alignment, highlightIndex, phase, q.text])
 
   const maxSecs = state.settings.max_response_seconds
   const you = state.players.find((p) => p.user_id === me)
   const waitingFor = state.players.filter((p) => p.connected && !p.ready).length
   const totalConnected = state.players.filter((p) => p.connected).length
 
+  // Running average of this player's scores so far (including current round).
+  const myScored = (you?.scores ?? []).filter((s): s is number => s != null)
+  const runningAvg = myScored.length ? myScored.reduce((a, b) => a + b, 0) / myScored.length : null
+
   return (
     <>
       <div className={card}>
-        <div className={`${muted} text-sm`}>
-          Question {state.current_index + 1} of {state.questions_total}
+        <div className={`${muted} mb-1`}>Question {state.current_index + 1} of {state.questions_total}</div>
+        <div className="text-lg font-semibold leading-snug mb-2">{questionNode}</div>
+        {q.category && <div className="mb-2"><span className={tag}>{q.category}</span></div>}
+
+        <div className="flex flex-col items-center my-6 gap-2">
+          {phase === 'recording' ? (
+            <>
+              <button className={`${micBase} bg-skin-danger text-white animate-mic-pulse`}
+                onClick={stopRecording}>⏹ Stop</button>
+              <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
+            </>
+          ) : phase === 'submitted' ? (
+            <button className={`${micBase} bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 cursor-not-allowed`} disabled>
+              Saved
+            </button>
+          ) : phase === 'processing' ? (
+            <button className={`${micBase} bg-skin-accent text-white opacity-50 cursor-not-allowed`} disabled>
+              Scoring…
+            </button>
+          ) : (
+            <button className={`${micBase} bg-skin-accent text-white opacity-50 cursor-not-allowed`} disabled>
+              {phase === 'playing' ? 'Reading…' : '…'}
+            </button>
+          )}
         </div>
-        <div className="text-[22px] font-extrabold leading-tight mt-1">
-          {q.text}
-        </div>
-        {q.category && (
-          <div className={`${muted} text-xs mt-1`}>{q.category}</div>
-        )}
+
+        {error && <div className={`${card} bg-skin-surface-2 text-skin-danger`}>{error}</div>}
       </div>
 
-      <div className={card}>
-        {phase === 'playing' && (
-          <div className={muted}>🔊 Reading the question…</div>
-        )}
-
-        {phase === 'ready-to-record' && (
-          <div className={muted}>Starting recording…</div>
-        )}
-
-        {phase === 'recording' && (
-          <div className="flex flex-col items-center gap-3 py-4">
-            <button className={`${btnPrimary} px-6 py-3 rounded-full`} onClick={stopRecording}>
-              ⏹ Stop & submit
-            </button>
-            <div className={`${muted} text-sm`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {fmt(elapsed)} / {fmt(maxSecs)}
+      {phase === 'submitted' && (
+        <div className={card}>
+          <div className={spread}>
+            <div>
+              Your score this round:{' '}
+              <span className={`font-bold text-xl ${scoreColor(score)}`}>
+                {score != null ? score.toFixed(1) : '—'}/5
+              </span>
             </div>
-            <button className={`${btnGhost} text-xs`} onClick={skip}>
-              Skip this round
-            </button>
-          </div>
-        )}
-
-        {phase === 'processing' && (
-          <div className={muted}>Transcribing & scoring your answer…</div>
-        )}
-
-        {phase === 'submitted' && (
-          <div className={stack}>
-            <div className={spread}>
-              <div>
-                Your score:{' '}
-                <span className={`font-bold text-xl ${scoreColor(score)}`}>
-                  {score != null ? score.toFixed(1) : '—'}/5
-                </span>
-              </div>
-              <div className={`${muted} text-xs`}>
-                Feedback below is private to you.
-              </div>
-            </div>
-            <PrivateFeedback evaluation={evaluation} transcript={transcript} />
-            <div className={muted}>
-              Waiting for other players… ({totalConnected - waitingFor}/{totalConnected} ready)
+            <div className={`${muted} text-xs`}>
+              Detailed feedback shows at the end of the game.
             </div>
           </div>
-        )}
 
-        {phase === 'error' && (
-          <div className="text-skin-danger">{error}</div>
-        )}
-      </div>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {METRIC_KEYS.map(({ key, label }) => {
+              const m = evaluation?.[key] as { score: number } | undefined
+              return (
+                <div key={String(key)}
+                  className="border border-skin-border rounded-skin p-2 text-center">
+                  <div className={`${muted} text-xs`}>{label.replace(/ \(.*\)/, '')}</div>
+                  <div className={`font-bold text-lg ${scoreColor(m?.score ?? null)}`}>
+                    {m?.score != null ? m.score.toFixed(1) : '—'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {runningAvg != null && (
+            <div className={`${muted} text-sm mt-3`}>
+              Running average after {myScored.length} question{myScored.length === 1 ? '' : 's'}:{' '}
+              <span className={`font-bold ${scoreColor(runningAvg)}`}>{runningAvg.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className={`${muted} text-sm mt-2`}>
+            Waiting for other players… ({totalConnected - waitingFor}/{totalConnected} ready)
+          </div>
+        </div>
+      )}
 
       <div className={card}>
         <div className={`${muted} text-sm mb-2`}>Live leaderboard</div>
         <MiniLeaderboard state={state} me={me} />
-        {you && (
-          <div className={`${muted} text-xs mt-2`}>
-            Your scores so far: {you.scores.map((s, i) => (
-              <span key={i} className="mr-2">Q{i + 1}: <span className={scoreColor(s)}>{s != null ? s.toFixed(1) : '—'}</span></span>
-            ))}
-          </div>
-        )}
       </div>
     </>
   )
@@ -538,13 +693,22 @@ function MiniLeaderboard({ state, me }: { state: RoomState; me: string }) {
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Final
-// ────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Final — table leaderboard + full AI feedback per question
+// ─────────────────────────────────────────────────────────────────────────────
 function FinalView({
-  state, leaderboard,
-}: { state: RoomState; leaderboard: LeaderboardEntry[] }) {
+  state, leaderboard, myEvals, onBack, onLeave,
+}: {
+  state: RoomState
+  leaderboard: LeaderboardEntry[]
+  myEvals: StoredEval[]
+  onBack: () => void
+  onLeave: () => void
+}) {
   const winner = leaderboard[0]
+  const questionCount = state.questions_total
+  const qIndices = Array.from({ length: questionCount }, (_, i) => i)
+
   return (
     <>
       <div className={card} style={{ textAlign: 'center' }}>
@@ -554,128 +718,142 @@ function FinalView({
           {winner ? `${winner.total.toFixed(1)} total · ${winner.avg.toFixed(1)} avg` : ''}
         </div>
       </div>
+
+      {/* Table leaderboard */}
       <div className={card}>
         <h3 className="mt-0 mb-2">Final leaderboard</h3>
-        <div className={stack}>
-          {leaderboard.map((p, i) => (
-            <div key={p.user_id} className="flex items-center gap-3 p-2 border-b border-skin-border last:border-0">
-              <span className={`${muted} text-sm`} style={{ minWidth: 24 }}>{i + 1}.</span>
-              {p.picture && <img src={p.picture} alt="" className={thumb} />}
-              <span className="flex-1 font-medium">{p.name}</span>
-              <span className="text-xs text-skin-muted">
-                {p.scores.map((s, qi) => (
-                  <span key={qi} className="mr-1.5">
-                    Q{qi + 1}: <span className={scoreColor(s)}>{s != null ? s.toFixed(1) : '—'}</span>
-                  </span>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="text-left border-b border-skin-border">
+                <th className={`${muted} font-normal py-2 pr-2`} style={{ minWidth: 40 }}>#</th>
+                <th className={`${muted} font-normal py-2 pr-2`}>Player</th>
+                {qIndices.map((i) => (
+                  <th key={i} className={`${muted} font-normal py-2 px-2 text-center`}>Q{i + 1}</th>
                 ))}
-              </span>
-              <span className="font-bold w-16 text-right">{p.total.toFixed(1)}</span>
-            </div>
-          ))}
+                <th className={`${muted} font-normal py-2 pl-2 text-right`}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((p, i) => (
+                <tr key={p.user_id} className="border-b border-skin-border last:border-0">
+                  <td className={`${muted} py-2 pr-2`}>{i + 1}</td>
+                  <td className="py-2 pr-2">
+                    <div className="flex items-center gap-2">
+                      {p.picture && <img src={p.picture} alt="" className={thumb} />}
+                      <span className="font-medium">{p.name}</span>
+                    </div>
+                  </td>
+                  {qIndices.map((qi) => {
+                    const s = p.scores[qi]
+                    return (
+                      <td key={qi} className={`py-2 px-2 text-center ${scoreColor(s ?? null)}`}>
+                        {s != null ? s.toFixed(1) : '—'}
+                      </td>
+                    )
+                  })}
+                  <td className="py-2 pl-2 text-right font-bold">{p.total.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div>
-        <Link to="/rooms" className={btnPrimary}>Back to rooms</Link>
+
+      {/* Detailed feedback — only this player's own, only at the end */}
+      {myEvals.length > 0 && (
+        <div className={card}>
+          <h3 className="mt-0 mb-2">
+            Your AI feedback{' '}
+            <span className={`${muted} text-xs font-normal`}>(private to you)</span>
+          </h3>
+          <div className={stack}>
+            {myEvals.map((e) => (
+              <FeedbackBlock key={e.question_index} entry={e} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2 flex-wrap">
+        <button className={btnGhost} onClick={onBack}>Back to rooms</button>
+        <button className={btnPrimary} onClick={onLeave}>Leave room</button>
       </div>
     </>
   )
 }
 
-function fmt(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds))
-  const m = Math.floor(s / 60)
-  return `${m}:${String(s % 60).padStart(2, '0')}`
-}
-
-// ── Private AI feedback (shown only to the player who gave the answer) ───────
-const METRIC_LABELS: { key: keyof Evaluation; label: string }[] = [
-  { key: 'structure_star',    label: 'Structure (STAR)' },
-  { key: 'specificity_depth', label: 'Specificity & Depth' },
-  { key: 'delivery_pacing',   label: 'Delivery (Pacing & Fillers)' },
-  { key: 'relevance',         label: 'Relevance to Question' },
-  { key: 'reflection',        label: 'Reflection & Self-Awareness' },
-]
-
-function PrivateFeedback({
-  evaluation, transcript,
-}: { evaluation: Evaluation | null; transcript: string }) {
-  if (!evaluation) {
-    return (
-      <details className="rounded-skin border border-skin-border">
-        <summary className="cursor-pointer px-3 py-2 bg-skin-surface-2 rounded-skin">
-          Your transcript
-        </summary>
-        <div className="p-3 text-skin-text whitespace-pre-wrap">
-          {transcript || <span className={muted}>No transcript.</span>}
-        </div>
-      </details>
-    )
-  }
+function FeedbackBlock({ entry }: { entry: StoredEval }) {
+  const ev = entry.evaluation
   return (
-    <details open className="rounded-skin border border-skin-border">
-      <summary className="cursor-pointer px-3 py-2 bg-skin-surface-2 rounded-skin font-semibold">
-        Your AI feedback
+    <details className="rounded-skin border border-skin-border">
+      <summary className="cursor-pointer px-3 py-2 bg-skin-surface-2 rounded-skin">
+        <span className={`${muted} text-xs mr-2`}>Q{entry.question_index + 1}</span>
+        <span className="font-semibold">{entry.question_text}</span>
+        {ev?.overall != null && (
+          <span className={`float-right font-bold ${scoreColor(ev.overall)}`}>
+            {ev.overall.toFixed(1)}/5
+          </span>
+        )}
       </summary>
       <div className="p-3 flex flex-col gap-3">
-        {transcript && (
+        {entry.transcript && (
           <div className="text-skin-text text-sm border-l-2 border-skin-border pl-3 whitespace-pre-wrap">
-            {transcript}
+            {entry.transcript}
           </div>
         )}
-
-        <div className="flex flex-col">
-          {METRIC_LABELS.map(({ key, label }) => {
-            const m = evaluation[key] as { score: number; feedback: string } | undefined
-            if (!m) return null
-            return (
-              <div key={String(key)}
-                className="grid grid-cols-[1fr_auto] gap-2 py-2 border-b border-dashed border-skin-border last:border-b-0">
-                <div>
-                  <div className="font-semibold">{label}</div>
-                  <div className="text-skin-muted text-[13px] mt-0.5">{m.feedback}</div>
+        {ev && (
+          <div className="flex flex-col">
+            {METRIC_KEYS.map(({ key, label }) => {
+              const m = ev[key] as { score: number; feedback: string } | undefined
+              if (!m) return null
+              return (
+                <div key={String(key)}
+                  className="grid grid-cols-[1fr_auto] gap-2 py-2 border-b border-dashed border-skin-border last:border-b-0">
+                  <div>
+                    <div className="font-semibold">{label}</div>
+                    <div className="text-skin-muted text-[13px] mt-0.5">{m.feedback}</div>
+                  </div>
+                  <div className={`font-bold text-lg ${scoreColor(m.score)}`}>
+                    {m.score.toFixed(1)}/5
+                  </div>
                 </div>
-                <div className={`font-bold text-lg ${scoreColor(m.score)}`}>
-                  {m.score.toFixed(1)}/5
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {evaluation.summary && (
+              )
+            })}
+          </div>
+        )}
+        {ev?.summary && (
           <div className="text-[13px] px-3 py-2 rounded-skin bg-[var(--blue-50)] text-[var(--blue-800)] border border-[var(--blue-200)] dark:bg-[rgba(59,130,246,0.1)] dark:text-[var(--blue-300)] dark:border-[var(--blue-800)]">
-            {evaluation.summary}
+            {ev.summary}
           </div>
         )}
-
-        {(evaluation.strengths?.length || evaluation.improvements?.length) && (
+        {ev && (ev.strengths?.length || ev.improvements?.length) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            {evaluation.strengths && evaluation.strengths.length > 0 && (
+            {ev.strengths && ev.strengths.length > 0 && (
               <div>
                 <div className="font-semibold mb-1">Strengths</div>
                 <ul className="list-disc pl-5 m-0">
-                  {evaluation.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                  {ev.strengths.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
             )}
-            {evaluation.improvements && evaluation.improvements.length > 0 && (
+            {ev.improvements && ev.improvements.length > 0 && (
               <div>
                 <div className="font-semibold mb-1">Improvements</div>
                 <ul className="list-disc pl-5 m-0">
-                  {evaluation.improvements.map((s, i) => <li key={i}>{s}</li>)}
+                  {ev.improvements.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
             )}
           </div>
         )}
-
-        {(evaluation.words_per_minute != null || evaluation.filler_count != null) && (
+        {ev && (ev.words_per_minute != null || ev.filler_count != null) && (
           <div className={`${muted} text-xs`}>
-            {evaluation.words_per_minute != null && (
-              <span className="mr-3">{Math.round(evaluation.words_per_minute)} WPM</span>
+            {ev.words_per_minute != null && (
+              <span className="mr-3">{Math.round(ev.words_per_minute)} WPM</span>
             )}
-            {evaluation.filler_count != null && (
-              <span>{evaluation.filler_count} filler word{evaluation.filler_count === 1 ? '' : 's'}</span>
+            {ev.filler_count != null && (
+              <span>{ev.filler_count} filler word{ev.filler_count === 1 ? '' : 's'}</span>
             )}
           </div>
         )}
