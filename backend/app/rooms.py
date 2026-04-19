@@ -61,6 +61,9 @@ class Room:
     round_deadline: float | None = None
     # asyncio task for the current round's timeout
     _round_task: asyncio.Task | None = field(default=None, repr=False)
+    # asyncio task that closes the room after everyone's gone; cancelled if
+    # anyone reconnects within the grace period.
+    _close_task: asyncio.Task | None = field(default=None, repr=False)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def public_state(self) -> dict:
@@ -133,9 +136,14 @@ class RoomManager:
     def list_public(self) -> list[dict]:
         out = []
         for r in self.rooms.values():
-            if not r.is_public or r.status != "lobby":
+            # Include lobby + running so people can see active games in progress.
+            # Finished rooms are effectively over — skip them.
+            if not r.is_public or r.status == "finished":
                 continue
             host = r.players.get(r.host_user_id)
+            total_questions = (
+                len(r.questions) if r.questions else r.settings.question_count
+            )
             out.append(
                 {
                     "code": r.code,
@@ -146,11 +154,17 @@ class RoomManager:
                     "status": r.status,
                     "company": r.settings.company,
                     "question_count": r.settings.question_count,
+                    # 0-based internally, expose a human-friendly 1-based index
+                    # (1 when a running room is on question 1 of N).
+                    "current_round": (r.current_index + 1) if r.status == "running" else None,
+                    "total_rounds": total_questions,
                     "created_at": r.created_at.isoformat(),
                 }
             )
-        # newest first
+        # Lobby rooms first (joinable); then running rooms. Each group
+        # newest-first — relies on Python's sort being stable.
         out.sort(key=lambda x: x["created_at"], reverse=True)
+        out.sort(key=lambda x: 0 if x["status"] == "lobby" else 1)
         return out
 
     # ---------- Lifecycle ----------
@@ -201,6 +215,8 @@ class RoomManager:
         await self.broadcast(room, {"type": "state", "room": room.public_state()})
 
     async def join(self, room: Room, player: Player) -> None:
+        # Someone showed up — cancel any pending close-after-grace timer.
+        self._cancel_close(room)
         existing = room.players.get(player.user_id)
         if existing:
             # Re-connect: take over with the new socket.
@@ -223,19 +239,18 @@ class RoomManager:
         p.connected = False
         # Don't remove from players so they can reconnect mid-game.
         await self._snapshot(room)
-        # If everyone left, close the room.
+        # If nobody's connected, start the 10s grace timer instead of closing
+        # immediately. A reconnect or join will cancel it.
         if not any(pl.connected for pl in room.players.values()):
-            if room._round_task and not room._round_task.done():
-                room._round_task.cancel()
-            self.rooms.pop(room.code, None)
+            self._schedule_close(room)
 
     async def remove(self, room: Room, user_id: str) -> None:
         """Explicit leave (user clicked Leave). Remove them fully."""
         room.players.pop(user_id, None)
         if not room.players:
-            if room._round_task and not room._round_task.done():
-                room._round_task.cancel()
-            self.rooms.pop(room.code, None)
+            # Same 10s grace window for explicit leaves — a quick change of
+            # mind shouldn't nuke the room.
+            self._schedule_close(room)
             return
         if room.host_user_id == user_id:
             # Transfer host to the next connected player (or any remaining).
@@ -245,6 +260,32 @@ class RoomManager:
             )
             room.host_user_id = next_host
         await self._snapshot(room)
+
+    # ---------- Close-after-grace ----------
+    CLOSE_GRACE_SECONDS: float = 10.0
+
+    def _schedule_close(self, room: Room) -> None:
+        if room._close_task and not room._close_task.done():
+            return  # Already counting down
+        room._close_task = asyncio.create_task(self._close_after(room))
+
+    def _cancel_close(self, room: Room) -> None:
+        if room._close_task and not room._close_task.done():
+            room._close_task.cancel()
+        room._close_task = None
+
+    async def _close_after(self, room: Room) -> None:
+        try:
+            await asyncio.sleep(self.CLOSE_GRACE_SECONDS)
+            # Still empty? Then close for real. Someone may have reconnected
+            # OR joined a fresh user in the grace window, in which case skip.
+            if any(pl.connected for pl in room.players.values()):
+                return
+            if room._round_task and not room._round_task.done():
+                room._round_task.cancel()
+            self.rooms.pop(room.code, None)
+        except asyncio.CancelledError:
+            pass
 
     # ---------- Settings ----------
     async def update_settings(self, room: Room, settings: RoomSettings) -> None:

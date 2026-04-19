@@ -158,6 +158,13 @@ export default function Room() {
     })
   }
 
+  // Keep the browser tab title in sync with the room name while we're here.
+  useEffect(() => {
+    const prev = document.title
+    if (state?.name) document.title = `${state.name} · WINterview`
+    return () => { document.title = prev }
+  }, [state?.name])
+
   if (wsError) {
     return (
       <div className={main}>
@@ -423,7 +430,13 @@ function SessionView({
 
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
-  const startedAtRef = useRef(0)
+  // Perceived timer anchor: when TTS finished. Drives the displayed clock
+  // and the hard cap, so time spent approving mic perms still counts against
+  // the answer budget.
+  const timerStartRef = useRef(0)
+  // Actual speaking anchor: when MediaRecorder.start() fires. Drives the
+  // duration_seconds sent to the backend for pacing analysis.
+  const recordStartRef = useRef(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rafRef = useRef<number>(0)
   const tickRef = useRef<number | null>(null)
@@ -438,6 +451,8 @@ function SessionView({
     setAlignment(null)
     setHighlightIndex(-1)
     chunksRef.current = []
+    timerStartRef.current = 0
+    recordStartRef.current = 0
     playTTS()
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current)
@@ -476,20 +491,43 @@ function SessionView({
         cancelAnimationFrame(rafRef.current)
         setHighlightIndex(-1)
         audioRef.current = null
-        setPhase('ready-to-record')
-        startRecording()
+        beginAnswerWindow()
       }
       audio.onerror = () => {
         cancelAnimationFrame(rafRef.current)
         audioRef.current = null
-        setPhase('ready-to-record')
-        startRecording()
+        beginAnswerWindow()
       }
       await audio.play()
     } catch {
-      setPhase('ready-to-record')
-      startRecording()
+      beginAnswerWindow()
     }
+  }
+
+  // Kick off the user's perceived answer window: timer + hard cap start now,
+  // *before* we prompt for mic permissions, so deliberation time counts.
+  const beginAnswerWindow = () => {
+    setPhase('ready-to-record')
+    timerStartRef.current = Date.now()
+    setElapsed(0)
+    if (tickRef.current) window.clearInterval(tickRef.current)
+    tickRef.current = window.setInterval(() => {
+      setElapsed((Date.now() - timerStartRef.current) / 1000)
+    }, 200)
+    if (hardCapRef.current) window.clearTimeout(hardCapRef.current)
+    hardCapRef.current = window.setTimeout(() => {
+      // If the mic went live, stop it cleanly and let onstop submit.
+      if (mediaRef.current && mediaRef.current.state !== 'inactive') {
+        mediaRef.current.stop()
+        return
+      }
+      // Otherwise (perms never resolved / still "ready-to-record"): submit 0.
+      if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
+      send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
+      setScore(0)
+      setPhase('submitted')
+    }, state.settings.max_response_seconds * 1000)
+    startRecording()
   }
 
   const startRecording = async () => {
@@ -501,22 +539,24 @@ function SessionView({
       rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data) }
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
-        const duration = (Date.now() - startedAtRef.current) / 1000
+        // duration is actual speaking time (rec.start → rec.stop), so pacing
+        // analysis isn't inflated by mic-perm deliberation.
+        const duration = recordStartRef.current
+          ? (Date.now() - recordStartRef.current) / 1000
+          : 0
         handleAudio(new Blob(chunksRef.current, { type: mime }), duration)
       }
       mediaRef.current = rec
-      startedAtRef.current = Date.now()
+      recordStartRef.current = Date.now()
       rec.start()
+      // Timer + hard cap were already started in beginAnswerWindow — don't
+      // reset them, the displayed elapsed should keep ticking from TTS end.
       setPhase('recording')
-      tickRef.current = window.setInterval(() => {
-        setElapsed((Date.now() - startedAtRef.current) / 1000)
-      }, 200)
-      hardCapRef.current = window.setTimeout(() => {
-        if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop()
-      }, state.settings.max_response_seconds * 1000)
     } catch (e: any) {
       setError(`Microphone error: ${e.message}`)
       setPhase('error')
+      if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
+      if (hardCapRef.current) { window.clearTimeout(hardCapRef.current); hardCapRef.current = null }
     }
   }
 
@@ -596,6 +636,14 @@ function SessionView({
             <>
               <button className={`${micBase} bg-skin-danger text-white animate-mic-pulse`}
                 onClick={stopRecording}>⏹ Stop</button>
+              <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
+            </>
+          ) : phase === 'ready-to-record' ? (
+            <>
+              <button className={`${micBase} bg-skin-danger text-white opacity-70 cursor-not-allowed`}
+                disabled>
+                Allow mic…
+              </button>
               <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
             </>
           ) : phase === 'submitted' ? (
@@ -712,7 +760,7 @@ function FinalView({
   return (
     <>
       <div className={card} style={{ textAlign: 'center' }}>
-        <div className={`${muted} text-sm`}>Winner</div>
+        <div className={`${muted} text-sm`}>Winner of {state.name}</div>
         <div className="text-2xl font-extrabold mt-1">🏆 {winner?.name ?? '—'}</div>
         <div className={`${muted} text-sm mt-1`}>
           {winner ? `${winner.total.toFixed(1)} total · ${winner.avg.toFixed(1)} avg` : ''}

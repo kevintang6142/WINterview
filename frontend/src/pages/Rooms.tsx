@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
@@ -11,9 +11,11 @@ interface PublicRoom {
   host_name: string | null
   player_count: number
   max_players: number
-  status: string
+  status: 'lobby' | 'running' | 'finished'
   company: string | null
   question_count: number
+  current_round: number | null
+  total_rounds: number
   created_at: string
 }
 
@@ -54,15 +56,21 @@ export default function Rooms() {
       return n
     })
 
+  // Only show the spinner on the very first fetch; periodic polls should
+  // update data in place without flashing "Loading…".
+  const initialLoadRef = useRef(true)
   const refresh = async () => {
-    setLoading(true)
     try {
       const data = await api.get('/rooms')
       setRooms(Array.isArray(data) ? data : [])
     } catch {
-      setRooms([])
+      if (initialLoadRef.current) setRooms([])
+      // otherwise: preserve last-known list on transient errors
     } finally {
-      setLoading(false)
+      if (initialLoadRef.current) {
+        setLoading(false)
+        initialLoadRef.current = false
+      }
     }
   }
 
@@ -125,10 +133,12 @@ export default function Rooms() {
           <div className={`${card} flex items-center justify-between gap-3 flex-wrap`}
             style={{ borderColor: 'var(--blue-300)', background: 'var(--blue-50)' }}>
             <div>
-              <strong className="text-[var(--blue-800)]">You're in a room</strong>
+              <strong className="text-[var(--blue-800)]">
+                You're still in{user.current_room_name ? ` "${user.current_room_name}"` : ' a room'}
+              </strong>
               <div className={`${muted} text-sm`}>
-                Room <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>{user.current_room_code}</span>.
-                You left the tab but didn't leave the room.
+                Code <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>{user.current_room_code}</span>
+                {' '}— you left the tab but didn't leave the room.
               </div>
             </div>
             <Link to={`/rooms/${user.current_room_code}`} className={btnPrimary}>
@@ -144,13 +154,20 @@ export default function Rooms() {
             through behavioral questions together. Highest total AI score wins.
           </p>
 
-          <form className="flex items-stretch gap-2 mb-4" onSubmit={join}>
+          <form className="flex items-stretch gap-2 mb-4 flex-wrap" onSubmit={join}>
             <input
-              placeholder="Enter room code"
+              placeholder="ROOM CODE"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               maxLength={8}
-              style={{ textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: '0.1em' }}
+              style={{
+                width: 180,
+                flex: '0 0 auto',
+                textTransform: 'uppercase',
+                fontFamily: 'monospace',
+                letterSpacing: '0.18em',
+                textAlign: 'center',
+              }}
             />
             <button type="submit" className={btnGhost} disabled={!joinCode.trim()}>
               Join by code
@@ -246,24 +263,52 @@ export default function Rooms() {
             <div className={`${muted} text-sm`}>No public rooms right now. Create one!</div>
           )}
           <div className={stack}>
-            {rooms.map((r) => (
-              <Link key={r.code} to={`/rooms/${r.code}`}
-                className="block border border-skin-border rounded-skin p-3 hover:bg-skin-surface-2 text-skin-text hover:no-underline">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="font-semibold">{r.name}</span>
-                  <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }} className={`${muted} text-sm`}>
-                    {r.code}
-                  </span>
-                  <span className={`${muted} text-sm`}>
-                    hosted by {r.host_name ?? '—'}
-                  </span>
-                  <span className={`${muted} text-sm ml-auto`}>
-                    {r.player_count}/{r.max_players} · {r.question_count} Qs
-                    {r.company ? ` · ${r.company}` : ''}
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {rooms.map((r) => {
+              const inProgress = r.status === 'running'
+              return (
+                <Link key={r.code} to={`/rooms/${r.code}`}
+                  className={`block border border-skin-border rounded-skin p-3 text-skin-text hover:no-underline ${
+                    inProgress ? 'bg-skin-surface-2 hover:bg-skin-surface-2' : 'hover:bg-skin-surface-2'
+                  }`}>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-semibold">{r.name}</span>
+                    <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }} className={`${muted} text-sm`}>
+                      {r.code}
+                    </span>
+                    {inProgress ? (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{
+                          background: 'var(--blue-100)',
+                          color: 'var(--blue-800)',
+                        }}
+                        title="Game in progress — only existing players can rejoin"
+                      >
+                        In progress · {r.current_round}/{r.total_rounds}
+                      </span>
+                    ) : (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{
+                          background: 'var(--surface-2)',
+                          color: 'var(--text-muted)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        Lobby
+                      </span>
+                    )}
+                    <span className={`${muted} text-sm`}>
+                      hosted by {r.host_name ?? '—'}
+                    </span>
+                    <span className={`${muted} text-sm ml-auto`}>
+                      {r.player_count}/{r.max_players} · {r.question_count} Qs
+                      {r.company ? ` · ${r.company}` : ''}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </div>

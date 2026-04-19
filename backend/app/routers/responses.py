@@ -315,6 +315,9 @@ async def add_comment(
         {"$set": {"value": 1, "updated_at": datetime.now(timezone.utc)}},
         upsert=True,
     )
+    # The self-upvote contributes to the author's karma — recompute now so
+    # the Navbar + profile reflect the new value on next /auth/me.
+    await _recompute_comment_karma(db, user["_id"])
     return {"id": comment_id, **{k: v for k, v in doc.items() if k != "_id"}}
 
 
@@ -329,25 +332,7 @@ async def delete_comment(comment_id: str, user: dict = Depends(current_user)):
     # Remove reactions then the comment
     await db.reactions.delete_many({"target_type": "comment", "target_id": comment_id})
     await db.comments.delete_one({"_id": ObjectId(comment_id)})
-    # Recompute commenter's karma without this comment
-    remaining = [
-        str(cc["_id"])
-        async for cc in db.comments.find({"user_id": c["user_id"]}, {"_id": 1})
-    ]
-    if remaining:
-        karma_agg = [
-            a
-            async for a in db.reactions.aggregate([
-                {"$match": {"target_type": "comment", "target_id": {"$in": remaining}}},
-                {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
-            ])
-        ]
-        karma = karma_agg[0]["karma"] if karma_agg else 0
-    else:
-        karma = 0
-    await db.users.update_one(
-        {"_id": ObjectId(c["user_id"])}, {"$set": {"karma": karma}}
-    )
+    await _recompute_comment_karma(db, c["user_id"])
     return {"ok": True}
 
 
@@ -423,6 +408,30 @@ async def delete_rating(response_id: str, user: dict = Depends(current_user)):
 
 
 # ---------- Comment reactions (karma voting) ----------
+async def _recompute_comment_karma(db, author_id: str) -> int:
+    """Karma = net sum of reaction values across all of this user's comments.
+    Sets the user's karma to the fresh value and returns it."""
+    comment_ids = [
+        str(cc["_id"])
+        async for cc in db.comments.find({"user_id": author_id}, {"_id": 1})
+    ]
+    if not comment_ids:
+        karma = 0
+    else:
+        agg = [
+            a
+            async for a in db.reactions.aggregate([
+                {"$match": {"target_type": "comment", "target_id": {"$in": comment_ids}}},
+                {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
+            ])
+        ]
+        karma = agg[0]["karma"] if agg else 0
+    await db.users.update_one(
+        {"_id": ObjectId(author_id)}, {"$set": {"karma": karma}}
+    )
+    return karma
+
+
 async def _apply_comment_reaction(
     db, comment_id: str, user_id: str, value: int
 ):
@@ -464,29 +473,7 @@ async def react_comment(
     if not c:
         raise HTTPException(404, "Not found")
     await _apply_comment_reaction(db, comment_id, user["_id"], body.value)
-    # Karma for the comment author = net votes across all their comments.
-    author_comments = [
-        str(cc["_id"])
-        async for cc in db.comments.find({"user_id": c["user_id"]}, {"_id": 1})
-    ]
-    karma_agg = [
-        a
-        async for a in db.reactions.aggregate(
-            [
-                {
-                    "$match": {
-                        "target_type": "comment",
-                        "target_id": {"$in": author_comments},
-                    }
-                },
-                {"$group": {"_id": None, "karma": {"$sum": "$value"}}},
-            ]
-        )
-    ]
-    karma = karma_agg[0]["karma"] if karma_agg else 0
-    await db.users.update_one(
-        {"_id": ObjectId(c["user_id"])}, {"$set": {"karma": karma}}
-    )
+    await _recompute_comment_karma(db, c["user_id"])
     doc = await db.comments.find_one({"_id": ObjectId(comment_id)})
     return {
         "like_count": doc.get("like_count", 0),
