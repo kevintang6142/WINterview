@@ -10,6 +10,7 @@ import {
 import PacingGraph from '../components/PacingGraph'
 import { ALL_CATEGORIES } from '../lib/categories'
 import { Evaluation } from '../types'
+import MasteryDropdown from '../components/MasteryDropdown'
 
 // ── Types from the server ────────────────────────────────────────────────────
 interface ServerPlayer {
@@ -63,6 +64,7 @@ interface LeaderboardEntry {
 // (Server only broadcasts overall to other players — feedback stays private.)
 interface StoredEval {
   question_index: number
+  question_id: string
   question_text: string
   question_category: string
   evaluation: Evaluation | null
@@ -521,6 +523,7 @@ function SessionView({
       // refresh. Better than missing entries entirely.
       recordEval({
         question_index: state.current_index,
+        question_id: q.id,
         question_text: q.text,
         question_category: q.category || '',
         evaluation: null,
@@ -686,6 +689,7 @@ function SessionView({
       setEvaluation(ev ?? null)
       recordEval({
         question_index: state.current_index,
+        question_id: q.id,
         question_text: q.text,
         question_category: q.category || '',
         evaluation: ev ?? null,
@@ -700,6 +704,7 @@ function SessionView({
       // (otherwise failed rounds vanish from the feedback list entirely).
       recordEval({
         question_index: state.current_index,
+        question_id: q.id,
         question_text: q.text,
         question_category: q.category || '',
         evaluation: null,
@@ -1085,9 +1090,10 @@ function FeedbackBlock({ entry }: { entry: StoredEval }) {
   return (
     <div className={card}>
       <div className={bigQuestion}>{entry.question_text}</div>
-      {entry.question_category && (
+      {(entry.question_category || entry.question_id) && (
         <div className="flex items-center gap-2 flex-wrap mt-2.5 mb-1">
-          <span className={tag}>{entry.question_category}</span>
+          {entry.question_category && <span className={tag}>{entry.question_category}</span>}
+          {entry.question_id && <MasteryDropdown questionId={entry.question_id} />}
         </div>
       )}
 

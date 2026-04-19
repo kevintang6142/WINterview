@@ -24,6 +24,16 @@ def _gen_code(n: int = 6) -> str:
     return "".join(secrets.choice(_CODE_ALPHA) for _ in range(n))
 
 
+def _estimate_tts_seconds(text: str) -> float:
+    """Rough estimate of how long ElevenLabs will take to read `text` aloud.
+    Used to offset round_started_at so the displayed answer clock doesn't
+    start ticking until the prompt is (approximately) done being read."""
+    words = len([w for w in text.split() if w])
+    # eleven_turbo_v2_5 at default speed is roughly 175 WPM. Add a small
+    # buffer for punctuation pauses and codec/network latency.
+    return max(2.5, words * 60 / 175 + 0.6)
+
+
 @dataclass
 class RoomSettings:
     question_count: int = 3
@@ -368,9 +378,12 @@ class RoomManager:
             p.ready = False
             p.scoring = False
             p.returned = True  # everyone playing the new game is "in"
+        # Offset round_started_at by the TTS read-out estimate so the
+        # displayed answer clock starts at 0 after the prompt is read.
         now = time.time()
-        room.round_started_at = now
-        room.round_deadline = now + room.settings.max_response_seconds + 30
+        tts_estimate = _estimate_tts_seconds(questions[0]["text"])
+        room.round_started_at = now + tts_estimate
+        room.round_deadline = now + tts_estimate + room.settings.max_response_seconds + 30
         await self._snapshot(room)
         self._schedule_round_timeout(room)
 
@@ -479,8 +492,9 @@ class RoomManager:
             p.ready = False
             p.scoring = False
         now = time.time()
-        room.round_started_at = now
-        room.round_deadline = now + room.settings.max_response_seconds + 30
+        tts_estimate = _estimate_tts_seconds(room.questions[room.current_index]["text"])
+        room.round_started_at = now + tts_estimate
+        room.round_deadline = now + tts_estimate + room.settings.max_response_seconds + 30
         await self._snapshot(room)
         self._schedule_round_timeout(room)
 
