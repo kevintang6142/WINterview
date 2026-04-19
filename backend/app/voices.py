@@ -15,12 +15,16 @@ VOICES: list[dict] = [
         "name": "Rachel",
         "category": "premade",
     },
-    # Add more voices here, e.g.:
-    # {
-    #     "id": "EXAVITQu4vr4xnSDxMaL",
-    #     "name": "Bella",
-    #     "category": "premade",
-    # },
+    {
+        "id": "DODLEQrClDo8wCz460ld",
+        "name": "Lauren",
+        "category": "premade",
+    },
+    {
+        "id": "sB7vwSCyX0tQmU24cW2C",
+        "name": "Jon",
+        "category": "premade",
+    },
 ]
 
 # ID of the voice to use when none is specified
