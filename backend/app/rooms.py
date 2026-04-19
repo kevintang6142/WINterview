@@ -279,7 +279,7 @@ class RoomManager:
                 room.host_user_id = next_host
         # Don't remove from players so they can reconnect mid-game.
         await self._snapshot(room)
-        # If nobody's connected, start the 10s grace timer instead of closing
+        # If nobody's connected, start the grace timer instead of closing
         # immediately. A reconnect or join will cancel it.
         if not any(pl.connected for pl in room.players.values()):
             self._schedule_close(room)
@@ -288,9 +288,11 @@ class RoomManager:
         """Explicit leave (user clicked Leave). Remove them fully."""
         room.players.pop(user_id, None)
         if not room.players:
-            # Same 10s grace window for explicit leaves — a quick change of
-            # mind shouldn't nuke the room.
-            self._schedule_close(room)
+            # Everyone explicitly left — no reason to keep the room alive.
+            if room._round_task and not room._round_task.done():
+                room._round_task.cancel()
+            self._cancel_close(room)
+            self.rooms.pop(room.code, None)
             return
         if room.host_user_id == user_id:
             # Transfer host to the next connected player (or any remaining).
@@ -335,7 +337,7 @@ class RoomManager:
     # How long a room sticks around after everyone's gone. Gives players a
     # real window to come back after a browser crash or a quick break before
     # the room is garbage-collected.
-    CLOSE_GRACE_SECONDS: float = 300.0  # 5 minutes
+    CLOSE_GRACE_SECONDS: float = 60.0  # 1 minute
 
     def _schedule_close(self, room: Room) -> None:
         if room._close_task and not room._close_task.done():

@@ -41,7 +41,17 @@ def _settings_from_body(body: RoomSettingsBody) -> RoomSettings:
 # ---------- HTTP ----------
 @router.post("")
 async def create_room(body: CreateRoomBody, user: dict = Depends(current_user)):
+    db = get_db()
     settings = _settings_from_body(body.settings)
+
+    # Auto-leave any room the user is currently in so they can never be a
+    # member of two rooms at the same time.
+    prev_code = (user.get("current_room_code") or "").upper()
+    if prev_code:
+        prev_room = manager.get(prev_code)
+        if prev_room:
+            await manager.remove(prev_room, user["_id"])
+
     try:
         room = await manager.create(
             host_user_id=user["_id"],
@@ -51,6 +61,12 @@ async def create_room(body: CreateRoomBody, user: dict = Depends(current_user)):
         )
     except ValueError as e:
         raise HTTPException(409, str(e))
+
+    # Persist immediately so the banner appears even before the WS connects.
+    await db.users.update_one(
+        {"_id": ObjectId(user["_id"])},
+        {"$set": {"current_room_code": room.code, "current_room_name": room.name}},
+    )
     return {"code": room.code, "room": room.public_state()}
 
 
@@ -115,7 +131,7 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
         # return to a dead room.
         if (user_doc.get("current_room_code") or "").upper() == code.upper():
             await db.users.update_one(
-                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None}}
+                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None, "current_room_name": None}}
             )
         await websocket.close(code=4404)
         return
@@ -127,6 +143,14 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
         ws=websocket,
     )
 
+    # If the user is already in a different room, remove them from it first
+    # so they can't be a member of two rooms simultaneously.
+    prev_code = (user_doc.get("current_room_code") or "").upper()
+    if prev_code and prev_code != room.code:
+        prev_room = manager.get(prev_code)
+        if prev_room:
+            await manager.remove(prev_room, user_id)
+
     await websocket.accept()
     try:
         await manager.join(room, player)
@@ -135,10 +159,11 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
         await websocket.close()
         return
 
-    # Persist "currently in this room" on the user doc. Cleared only on
-    # explicit leave (below) or when rejoining a dead room (above).
+    # Persist "currently in this room" on the user doc (code + name). Cleared
+    # only on explicit leave (below) or when rejoining a dead room (4404).
     await db.users.update_one(
-        {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": room.code}}
+        {"_id": ObjectId(user_id)},
+        {"$set": {"current_room_code": room.code, "current_room_name": room.name}},
     )
 
     mtype: str | None = None
@@ -204,7 +229,7 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
         if mtype == "leave":
             await manager.remove(room, user_id)
             await db.users.update_one(
-                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None}}
+                {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None, "current_room_name": None}}
             )
         else:
             await manager.mark_disconnected(room, user_id)

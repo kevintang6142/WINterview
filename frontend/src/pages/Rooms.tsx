@@ -77,6 +77,9 @@ export default function Rooms() {
         name: trimmed,
         is_public: isPublic,
       })
+      // Immediately update the auth context so current_room_code is set
+      // before we navigate away — ensures the banner is ready on next visit.
+      await refreshAuth()
       nav(`/rooms/${res.code}`)
     } catch (e: any) {
       setErr(e.message)
@@ -99,7 +102,7 @@ export default function Rooms() {
           <div className={`${card} flex items-center justify-between gap-3 flex-wrap bg-[var(--blue-50)] border-[var(--blue-200)] dark:bg-[rgba(59,130,246,0.12)] dark:border-[var(--blue-800)]`}>
             <div>
               <strong className="text-[var(--blue-800)] dark:text-[var(--blue-300)]">
-                You're still in{user.current_room_name ? ` "${user.current_room_name}"` : ' a room'}
+                You're still in a room — {user.current_room_name?.trim() || 'Untitled room'}
               </strong>
               <div className={`${muted} text-sm`}>
                 Code <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>{user.current_room_code}</span>

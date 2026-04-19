@@ -45,7 +45,10 @@ async def google_login(body: GoogleLoginBody):
 
     token = create_jwt(user_id)
     user_doc = await db.users.find_one({"_id": ObjectId(user_id)})
-    code, room_name = await _resolve_current_room(db, user_id, user_doc.get("current_room_code") if user_doc else None)
+    code, room_name = await _resolve_current_room(
+        user_doc.get("current_room_code") if user_doc else None,
+        user_doc.get("current_room_name") if user_doc else None,
+    )
     return {
         "token": token,
         "user": {
@@ -63,7 +66,7 @@ async def google_login(body: GoogleLoginBody):
 @router.get("/me")
 async def me(user: dict = Depends(current_user)):
     db = get_db()
-    code, room_name = await _resolve_current_room(db, user["_id"], user.get("current_room_code"))
+    code, room_name = await _resolve_current_room(user.get("current_room_code"), user.get("current_room_name"))
     return {
         "id": user["_id"],
         "email": user.get("email"),
@@ -75,16 +78,14 @@ async def me(user: dict = Depends(current_user)):
     }
 
 
-async def _resolve_current_room(db, user_id: str, code: str | None) -> tuple[str | None, str | None]:
-    """Return (code, name) of the user's active room. If the stored code
-    points at a room that no longer exists (closed), clear it on the user
-    doc and return (None, None) so clients stop showing a stale banner."""
+async def _resolve_current_room(code: str | None, stored_name: str | None = None) -> tuple[str | None, str | None]:
+    """Return (code, name) for the user's stored room. Never clears the DB —
+    the authoritative cleanup happens when the user gets a 4404 on reconnect
+    or explicitly leaves. This prevents the banner from disappearing just
+    because the in-memory grace timer fired."""
     if not code:
         return None, None
     room = room_manager.get(code)
-    if room is None:
-        await db.users.update_one(
-            {"_id": ObjectId(user_id)}, {"$set": {"current_room_code": None}}
-        )
-        return None, None
-    return room.code, room.name
+    # If the room is gone from memory, return the code with the DB-stored name
+    # so the banner stays visible until the user tries to reconnect (4404).
+    return code, (room.name if room else stored_name)

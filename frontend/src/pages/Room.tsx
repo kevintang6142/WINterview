@@ -131,6 +131,12 @@ export default function Room() {
   const [storedEvals, setStoredEvals] = useState<StoredEval[]>([])
 
   useEffect(() => {
+    // Sync auth context immediately so the "still in a room" banner on /rooms
+    // is accurate as soon as we land here.
+    refreshAuth?.()
+  }, [code]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     const ws = new WebSocket(wsUrl(code))
     wsRef.current = ws
     ws.onmessage = (ev) => {
