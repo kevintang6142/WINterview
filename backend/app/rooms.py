@@ -45,6 +45,11 @@ class Player:
     scores: list[float | None] = field(default_factory=list)
     ready: bool = False  # submitted for current question
     connected: bool = True
+    # True whenever the player is "in the room" from the game's POV. Set
+    # False when the game ends (so we can distinguish players who ack'd the
+    # new lobby via {type: "return"} from those still looking at the
+    # finish screen). Unrelated to `connected`, which tracks the WS.
+    returned: bool = True
 
 
 @dataclass
@@ -59,8 +64,11 @@ class Room:
     # [{"id": str, "text": str, "category": str}]
     questions: list[dict] = field(default_factory=list)
     current_index: int = -1
-    # unix seconds when current round auto-advances
+    # unix seconds when current round auto-advances (anchor + grace)
     round_deadline: float | None = None
+    # unix seconds when the current round went live. Clients derive their
+    # displayed timer from this so refresh/rejoin pick up the same clock.
+    round_started_at: float | None = None
     # unix seconds until the next question starts (set during between-rounds gap)
     intermission_until: float | None = None
     # asyncio task for the current round's timeout
@@ -93,6 +101,7 @@ class Room:
                     "scores": p.scores,
                     "ready": p.ready,
                     "connected": p.connected,
+                    "returned": p.returned,
                 }
                 for p in self.players.values()
             ],
@@ -103,6 +112,7 @@ class Room:
                 else None
             ),
             "round_deadline": self.round_deadline,
+            "round_started_at": self.round_started_at,
             "intermission_until": self.intermission_until,
             "questions_total": (
                 len(self.questions) if self.questions else self.settings.question_count
@@ -230,6 +240,11 @@ class RoomManager:
             existing.name = player.name
             existing.picture = player.picture
             existing.connected = True
+            # Reconnecting during lobby implicitly counts as "returned"
+            # (they opened the Room page, the client will ack immediately
+            # if status==finished anyway).
+            if room.status == "lobby":
+                existing.returned = True
         else:
             if len(room.players) >= room.settings.max_players:
                 raise RuntimeError("Room is full")
@@ -277,6 +292,38 @@ class RoomManager:
             room.host_user_id = next_host
         await self._snapshot(room)
 
+    # ---------- Post-game lobby reset ----------
+    async def reset_to_lobby(self, room: Room) -> None:
+        """Reset a finished room back to lobby state, preserving settings.
+        Players keep their spots but `returned=False` for anyone who hasn't
+        ack'd yet — that's how they show up as disconnected in the lobby."""
+        if room.status != "finished":
+            return
+        if room._round_task and not room._round_task.done():
+            room._round_task.cancel()
+        room.status = "lobby"
+        room.questions = []
+        room.current_index = -1
+        room.round_deadline = None
+        room.round_started_at = None
+        room.intermission_until = None
+        for p in room.players.values():
+            p.scores = []
+            p.ready = False
+        await self._snapshot(room)
+
+    async def mark_returned(self, room: Room, user_id: str) -> None:
+        """Player ack'd being back in the lobby (finish-screen → lobby)."""
+        p = room.players.get(user_id)
+        if not p:
+            return
+        p.returned = True
+        # First return after game ends also triggers the lobby reset.
+        if room.status == "finished":
+            await self.reset_to_lobby(room)
+        else:
+            await self._snapshot(room)
+
     # ---------- Close-after-grace ----------
     CLOSE_GRACE_SECONDS: float = 10.0
 
@@ -322,7 +369,10 @@ class RoomManager:
         for p in room.players.values():
             p.scores = [None] * len(questions)
             p.ready = False
-        room.round_deadline = time.time() + room.settings.max_response_seconds + 30
+            p.returned = True  # everyone playing the new game is "in"
+        now = time.time()
+        room.round_started_at = now
+        room.round_deadline = now + room.settings.max_response_seconds + 30
         await self._snapshot(room)
         self._schedule_round_timeout(room)
 
@@ -374,7 +424,13 @@ class RoomManager:
         if room.current_index + 1 >= len(room.questions):
             room.status = "finished"
             room.round_deadline = None
+            room.round_started_at = None
             room.intermission_until = None
+            # Everyone has to explicitly ack returning to the lobby via
+            # {type: "return"} — until then they're shown as disconnected
+            # when the room auto-resets.
+            for p in room.players.values():
+                p.returned = False
             await self.broadcast(
                 room,
                 {
@@ -390,6 +446,7 @@ class RoomManager:
         if gap > 0:
             room.intermission_until = time.time() + gap
             room.round_deadline = None
+            room.round_started_at = None
             await self._snapshot(room)
             try:
                 await asyncio.sleep(gap)
@@ -400,7 +457,9 @@ class RoomManager:
         room.current_index += 1
         for p in room.players.values():
             p.ready = False
-        room.round_deadline = time.time() + room.settings.max_response_seconds + 30
+        now = time.time()
+        room.round_started_at = now
+        room.round_deadline = now + room.settings.max_response_seconds + 30
         await self._snapshot(room)
         self._schedule_round_timeout(room)
 

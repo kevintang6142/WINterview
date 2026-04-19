@@ -181,6 +181,11 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
                     continue
                 await manager.submit_score(room, user_id, qidx, overall)
 
+            elif mtype == "return":
+                # Player ack'd being back in the lobby. First caller after a
+                # finished game also triggers the room-to-lobby reset.
+                await manager.mark_returned(room, user_id)
+
             elif mtype == "leave":
                 break
 

@@ -129,7 +129,7 @@ export default function Profile() {
             inProgress={Object.values(masteryMap).filter(s => s === 'in-progress').length}
             total={totalQuestions}
           />
-          <div className="mt-3"><span className={scorePill}>Karma {karma ?? user?.karma ?? 0}</span></div>
+          <div className="mt-3"><span className={scorePill}>Karma: {karma ?? user?.karma ?? 0}</span></div>
           <p className={`${muted} text-xs mt-3.5`}>
             Karma is earned when the community upvotes your comments on other people's responses.
             Shared responses themselves are anonymous and earn no karma.

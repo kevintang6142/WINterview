@@ -33,7 +33,7 @@ function rangeError(label: string, value: number, { min, max }: { min: number; m
 
 export default function Rooms() {
   const nav = useNavigate()
-  const { user } = useAuth()
+  const { user, refresh: refreshAuth } = useAuth()
   const [rooms, setRooms] = useState<PublicRoom[]>([])
   const [loading, setLoading] = useState(true)
   const [joinCode, setJoinCode] = useState('')
@@ -77,8 +77,16 @@ export default function Rooms() {
 
   useEffect(() => {
     refresh()
+    // Also refresh auth on mount so the "Return to room" banner reflects the
+    // server — critical after clicking Back from a room where the client's
+    // cached user object may not yet know about current_room_code.
+    refreshAuth()
     const t = setInterval(refresh, 5000)
-    return () => clearInterval(t)
+    // Keep auth in sync while the page is open so the banner also disappears
+    // if the room closes (server-side grace expired, everyone left, etc).
+    const authT = setInterval(refreshAuth, 10000)
+    return () => { clearInterval(t); clearInterval(authT) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const create = async () => {

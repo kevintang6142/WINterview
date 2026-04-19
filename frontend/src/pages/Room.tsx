@@ -3,8 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import {
-  main, card, stack, spread, muted, tag, btnPrimary, btnGhost, thumb, ttsWord, ttsActive,
+  main, card, stack, spread, row, muted, tag, banner, bigQuestion, scorePill,
+  metricRow, metricName, metricFb, metricScore,
+  btnPrimary, btnGhost, thumb, ttsWord, ttsActive,
 } from '../lib/ui'
+import PacingGraph from '../components/PacingGraph'
 import { ALL_CATEGORIES } from '../lib/categories'
 import { Evaluation } from '../types'
 
@@ -16,6 +19,9 @@ interface ServerPlayer {
   scores: (number | null)[]
   ready: boolean
   connected: boolean
+  // False when a game just ended and the player hasn't ack'd being back in
+  // the lobby via {type: "return"} — shown as disconnected until they do.
+  returned: boolean
 }
 interface ServerQuestion { id: string; text: string; category: string }
 interface RoomState {
@@ -36,6 +42,9 @@ interface RoomState {
   current_index: number
   current_question: ServerQuestion | null
   round_deadline: number | null
+  // Unix seconds when the current round went live on the server.
+  // Client timers are derived from this so refresh/rejoin is seamless.
+  round_started_at: number | null
   intermission_until: number | null
   questions_total: number
 }
@@ -103,6 +112,10 @@ export default function Room() {
   const { user, refresh: refreshAuth } = useAuth()
   const [state, setState] = useState<RoomState | null>(null)
   const [finalBoard, setFinalBoard] = useState<LeaderboardEntry[] | null>(null)
+  // Kept true while the player is looking at the final leaderboard even
+  // after the server resets the room to lobby. Cleared when the player
+  // explicitly returns to the lobby.
+  const [showingFinal, setShowingFinal] = useState(false)
   const [wsError, setWsError] = useState<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -119,6 +132,7 @@ export default function Room() {
       else if (msg.type === 'finished') {
         setState(msg.room)
         setFinalBoard(msg.leaderboard)
+        setShowingFinal(true)
       } else if (msg.type === 'error') setWsError(msg.message)
     }
     ws.onclose = (ev) => {
@@ -151,6 +165,15 @@ export default function Room() {
   const back = () => {
     try { wsRef.current?.close() } catch {}
     nav('/rooms')
+  }
+
+  // From FinalView: ack being back in the lobby. Server resets to lobby
+  // state (if first caller) and flips our `returned` flag.
+  const returnToLobby = () => {
+    send({ type: 'return' })
+    setShowingFinal(false)
+    setStoredEvals([])       // fresh run → fresh summary next game
+    setFinalBoard(null)
   }
 
   const recordEval = (e: StoredEval) => {
@@ -206,31 +229,36 @@ export default function Room() {
           </div>
         </div>
 
-        {state.status === 'lobby' && (
-          <LobbyView state={state} isHost={isHost} send={send} />
-        )}
-
-        {state.status === 'running' && state.intermission_until && (
-          <IntermissionView state={state} me={user?.id ?? ''} />
-        )}
-
-        {state.status === 'running' && !state.intermission_until && state.current_question && (
-          <SessionView
-            state={state}
-            me={user?.id ?? ''}
-            send={send}
-            recordEval={recordEval}
-            key={state.current_index}
-          />
-        )}
-
-        {state.status === 'finished' && finalBoard && (
+        {/* FinalView wins over everything else while we still have a
+            leaderboard to show and the user hasn't pressed Return. This
+            intentionally hides the lobby/session view even if the server
+            has already reset the room to 'lobby'. */}
+        {showingFinal && finalBoard && (
           <FinalView
             state={state}
             leaderboard={finalBoard}
             myEvals={storedEvals}
             onBack={back}
             onLeave={leave}
+            onReturn={returnToLobby}
+          />
+        )}
+
+        {!showingFinal && state.status === 'lobby' && (
+          <LobbyView state={state} isHost={isHost} send={send} />
+        )}
+
+        {!showingFinal && state.status === 'running' && state.intermission_until && (
+          <IntermissionView state={state} me={user?.id ?? ''} />
+        )}
+
+        {!showingFinal && state.status === 'running' && !state.intermission_until && state.current_question && (
+          <SessionView
+            state={state}
+            me={user?.id ?? ''}
+            send={send}
+            recordEval={recordEval}
+            key={state.current_index}
           />
         )}
       </div>
@@ -326,6 +354,9 @@ function LobbyView({
                 <span className="text-xs px-2 py-0.5 rounded-full bg-skin-accent text-white">host</span>
               )}
               {!p.connected && <span className={`${muted} text-xs`}>disconnected</span>}
+              {p.connected && !p.returned && (
+                <span className={`${muted} text-xs`}>still on finish screen</span>
+              )}
             </div>
           ))}
         </div>
@@ -442,20 +473,19 @@ function SessionView({
 
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
-  // Perceived timer anchor: when TTS finished. Drives the displayed clock
-  // and the hard cap, so time spent approving mic perms still counts against
-  // the answer budget.
-  const timerStartRef = useRef(0)
-  // Actual speaking anchor: when MediaRecorder.start() fires. Drives the
-  // duration_seconds sent to the backend for pacing analysis.
+  // Speaking anchor: when MediaRecorder.start() fires. Drives duration_seconds
+  // sent to the backend for pacing analysis. Distinct from the displayed
+  // timer, which comes from state.round_started_at.
   const recordStartRef = useRef(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rafRef = useRef<number>(0)
   const tickRef = useRef<number | null>(null)
-  const hardCapRef = useRef<number | null>(null)
+  const timedOutRef = useRef(false)
+  // Derived elapsed since the server-authoritative round start. Every client
+  // and every rejoin computes the same number.
+  const roundStartedAt = state.round_started_at
 
   useEffect(() => {
-    setPhase('playing')
     setScore(null)
     setEvaluation(null)
     setError(null)
@@ -463,18 +493,70 @@ function SessionView({
     setAlignment(null)
     setHighlightIndex(-1)
     chunksRef.current = []
-    timerStartRef.current = 0
     recordStartRef.current = 0
+    timedOutRef.current = false
+
+    // Rejoin-in-progress: if the server already has me marked ready for this
+    // round (refreshed/reconnected after submitting), skip straight to the
+    // submitted state instead of replaying TTS and trying to record again.
+    const meServer = state.players.find((p) => p.user_id === me)
+    const alreadyScored = meServer?.scores?.[state.current_index]
+    if (meServer?.ready && alreadyScored != null) {
+      setPhase('submitted')
+      setScore(alreadyScored)
+      // Stub entry so the final summary still lists this question even
+      // though we don't have the full Gemini feedback in memory after a
+      // refresh. Better than missing entries entirely.
+      recordEval({
+        question_index: state.current_index,
+        question_text: q.text,
+        question_category: q.category || '',
+        evaluation: null,
+        transcript: '',
+      })
+      return
+    }
+
+    setPhase('playing')
     playTTS()
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current)
-      if (hardCapRef.current) window.clearTimeout(hardCapRef.current)
       cancelAnimationFrame(rafRef.current)
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
       if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.id])
+
+  // Server-anchored ticker: elapsed = now - state.round_started_at. On refresh
+  // or rejoin this picks up the same running clock. Also enforces the hard
+  // cap client-side so the recorder stops at the right moment even if the
+  // server's round timeout hasn't fired yet.
+  useEffect(() => {
+    if (phase === 'playing' || phase === 'submitted' || phase === 'error') return
+    if (!roundStartedAt) return
+    const maxSecs = state.settings.max_response_seconds
+    const applyTick = () => {
+      const e = Math.max(0, Date.now() / 1000 - roundStartedAt)
+      setElapsed(e)
+      if (e >= maxSecs && !timedOutRef.current) {
+        timedOutRef.current = true
+        if (mediaRef.current && mediaRef.current.state !== 'inactive') {
+          mediaRef.current.stop()
+        } else if (phase === 'ready-to-record') {
+          // Perms never resolved before time ran out — submit 0.
+          send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
+          setScore(0)
+          setPhase('submitted')
+        }
+      }
+    }
+    applyTick()
+    const iv = window.setInterval(applyTick, 200)
+    tickRef.current = iv
+    return () => { window.clearInterval(iv); tickRef.current = null }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundStartedAt, phase, state.settings.max_response_seconds])
 
   const playTTS = async () => {
     try {
@@ -516,29 +598,10 @@ function SessionView({
     }
   }
 
-  // Kick off the user's perceived answer window: timer + hard cap start now,
-  // *before* we prompt for mic permissions, so deliberation time counts.
+  // Kick off the user's answer window. Displayed timer is anchored to the
+  // server's round_started_at, so no local timer bookkeeping is needed here.
   const beginAnswerWindow = () => {
     setPhase('ready-to-record')
-    timerStartRef.current = Date.now()
-    setElapsed(0)
-    if (tickRef.current) window.clearInterval(tickRef.current)
-    tickRef.current = window.setInterval(() => {
-      setElapsed((Date.now() - timerStartRef.current) / 1000)
-    }, 200)
-    if (hardCapRef.current) window.clearTimeout(hardCapRef.current)
-    hardCapRef.current = window.setTimeout(() => {
-      // If the mic went live, stop it cleanly and let onstop submit.
-      if (mediaRef.current && mediaRef.current.state !== 'inactive') {
-        mediaRef.current.stop()
-        return
-      }
-      // Otherwise (perms never resolved / still "ready-to-record"): submit 0.
-      if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
-      send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
-      setScore(0)
-      setPhase('submitted')
-    }, state.settings.max_response_seconds * 1000)
     startRecording()
   }
 
@@ -561,20 +624,14 @@ function SessionView({
       mediaRef.current = rec
       recordStartRef.current = Date.now()
       rec.start()
-      // Timer + hard cap were already started in beginAnswerWindow — don't
-      // reset them, the displayed elapsed should keep ticking from TTS end.
       setPhase('recording')
     } catch (e: any) {
       setError(`Microphone error: ${e.message}`)
       setPhase('error')
-      if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
-      if (hardCapRef.current) { window.clearTimeout(hardCapRef.current); hardCapRef.current = null }
     }
   }
 
   const stopRecording = () => {
-    if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null }
-    if (hardCapRef.current) { window.clearTimeout(hardCapRef.current); hardCapRef.current = null }
     if (mediaRef.current && mediaRef.current.state !== 'inactive') mediaRef.current.stop()
   }
 
@@ -608,6 +665,15 @@ function SessionView({
     } catch (e: any) {
       setError(`Failed: ${e.message}. Submitting a 0.`)
       send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
+      // Still record a stub entry so the final summary shows every question
+      // (otherwise failed rounds vanish from the feedback list entirely).
+      recordEval({
+        question_index: state.current_index,
+        question_text: q.text,
+        question_category: q.category || '',
+        evaluation: null,
+        transcript: '',
+      })
       setPhase('submitted')
     }
   }
@@ -729,11 +795,13 @@ function SessionView({
 // Pill showing whether a player is ready for this round, disconnected, or
 // still working on it. Replaces the plain "…answering" text.
 function ReadyPill({ player, currentIndex }: { player: ServerPlayer; currentIndex: number }) {
-  if (!player.connected) {
+  // A player who hasn't ack'd returning from the finish screen shows as
+  // disconnected even though their WS is still open.
+  if (!player.connected || !player.returned) {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-skin-surface-2 text-skin-muted border border-skin-border">
         <span className="w-1.5 h-1.5 rounded-full bg-skin-muted" />
-        offline
+        {player.connected ? 'not in lobby' : 'offline'}
       </span>
     )
   }
@@ -869,16 +937,18 @@ function IntermissionView({ state, me }: { state: RoomState; me: string }) {
 // Final — table leaderboard + full AI feedback per question
 // ─────────────────────────────────────────────────────────────────────────────
 function FinalView({
-  state, leaderboard, myEvals, onBack, onLeave,
+  state, leaderboard, myEvals, onBack, onLeave, onReturn,
 }: {
   state: RoomState
   leaderboard: LeaderboardEntry[]
   myEvals: StoredEval[]
   onBack: () => void
   onLeave: () => void
+  onReturn: () => void
 }) {
   const winner = leaderboard[0]
-  const questionCount = state.questions_total
+  // Trust the leaderboard for column count — state may already be lobby.
+  const questionCount = Math.max(state.questions_total, leaderboard[0]?.scores.length ?? 0)
   const qIndices = Array.from({ length: questionCount }, (_, i) => i)
 
   return (
@@ -932,104 +1002,127 @@ function FinalView({
         </div>
       </div>
 
-      {/* Detailed feedback — only this player's own, only at the end */}
+      {/* Detailed feedback — only this player's own, only at the end.
+          Rendered in the same layout as the practice-mode summary. */}
       {myEvals.length > 0 && (
-        <div className={card}>
-          <h3 className="mt-0 mb-2">
-            Your AI feedback{' '}
-            <span className={`${muted} text-xs font-normal`}>(private to you)</span>
-          </h3>
-          <div className={stack}>
-            {myEvals.map((e) => (
-              <FeedbackBlock key={e.question_index} entry={e} />
-            ))}
+        <>
+          <div className={banner}>
+            This breakdown is <strong>private to you</strong>. Public shares only include
+            your transcript and pacing data — never the AI scores or feedback.
           </div>
-        </div>
+          {myEvals.map((e) => (
+            <FeedbackBlock key={e.question_index} entry={e} />
+          ))}
+        </>
       )}
 
       <div className="flex gap-2 flex-wrap">
-        <button className={btnGhost} onClick={onBack}>Back to rooms</button>
-        <button className={btnPrimary} onClick={onLeave}>Leave room</button>
+        <button className={btnPrimary} onClick={onReturn}>
+          Back to lobby
+        </button>
+        <button className={btnGhost} onClick={onBack}>
+          Back to rooms
+        </button>
+        <button className={btnGhost} onClick={onLeave}>
+          Leave room
+        </button>
       </div>
     </>
   )
 }
 
+function fmtDuration(seconds?: number) {
+  if (!seconds || seconds <= 0) return '—'
+  const s = Math.round(seconds)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
 function FeedbackBlock({ entry }: { entry: StoredEval }) {
   const ev = entry.evaluation
+  const fillerEntries = ev?.filler_words ? Object.entries(ev.filler_words) : []
+  const duration = ev?.duration_seconds ?? 0
   return (
-    <details className="rounded-skin border border-skin-border">
-      <summary className="cursor-pointer px-3 py-2 bg-skin-surface-2 rounded-skin">
-        <span className={`${muted} text-xs mr-2`}>Q{entry.question_index + 1}</span>
-        <span className="font-semibold">{entry.question_text}</span>
+    <div className={card}>
+      <div className={bigQuestion}>{entry.question_text}</div>
+      {entry.question_category && (
+        <div className="flex items-center gap-2 flex-wrap mt-2.5 mb-1">
+          <span className={tag}>{entry.question_category}</span>
+        </div>
+      )}
+
+      <div className={spread}>
+        <div className={muted}>
+          Time taken: <strong>{fmtDuration(duration)}</strong>
+          {ev?.word_count != null && <> · Words: <strong>{ev.word_count}</strong></>}
+        </div>
         {ev?.overall != null && (
-          <span className={`float-right font-bold ${scoreColor(ev.overall)}`}>
-            {ev.overall.toFixed(1)}/5
-          </span>
-        )}
-      </summary>
-      <div className="p-3 flex flex-col gap-3">
-        {entry.transcript && (
-          <div className="text-skin-text text-sm border-l-2 border-skin-border pl-3 whitespace-pre-wrap">
-            {entry.transcript}
-          </div>
-        )}
-        {ev && (
-          <div className="flex flex-col">
-            {METRIC_KEYS.map(({ key, label }) => {
-              const m = ev[key] as { score: number; feedback: string } | undefined
-              if (!m) return null
-              return (
-                <div key={String(key)}
-                  className="grid grid-cols-[1fr_auto] gap-2 py-2 border-b border-dashed border-skin-border last:border-b-0">
-                  <div>
-                    <div className="font-semibold">{label}</div>
-                    <div className="text-skin-muted text-[13px] mt-0.5">{m.feedback}</div>
-                  </div>
-                  <div className={`font-bold text-lg ${scoreColor(m.score)}`}>
-                    {m.score.toFixed(1)}/5
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        {ev?.summary && (
-          <div className="text-[13px] px-3 py-2 rounded-skin bg-[var(--blue-50)] text-[var(--blue-800)] border border-[var(--blue-200)] dark:bg-[rgba(59,130,246,0.1)] dark:text-[var(--blue-300)] dark:border-[var(--blue-800)]">
-            {ev.summary}
-          </div>
-        )}
-        {ev && (ev.strengths?.length || ev.improvements?.length) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            {ev.strengths && ev.strengths.length > 0 && (
-              <div>
-                <div className="font-semibold mb-1">Strengths</div>
-                <ul className="list-disc pl-5 m-0">
-                  {ev.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
-            )}
-            {ev.improvements && ev.improvements.length > 0 && (
-              <div>
-                <div className="font-semibold mb-1">Improvements</div>
-                <ul className="list-disc pl-5 m-0">
-                  {ev.improvements.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-        {ev && (ev.words_per_minute != null || ev.filler_count != null) && (
-          <div className={`${muted} text-xs`}>
-            {ev.words_per_minute != null && (
-              <span className="mr-3">{Math.round(ev.words_per_minute)} WPM</span>
-            )}
-            {ev.filler_count != null && (
-              <span>{ev.filler_count} filler word{ev.filler_count === 1 ? '' : 's'}</span>
-            )}
-          </div>
+          <span className={scorePill}>Overall {ev.overall.toFixed(1)}/5</span>
         )}
       </div>
-    </details>
+
+      {entry.transcript ? (
+        <div className={`${card} bg-skin-surface-2 mt-3.5`}>
+          <strong>Your response</strong>
+          <p className="whitespace-pre-wrap mt-1.5">{entry.transcript}</p>
+        </div>
+      ) : (
+        <div className={`${card} bg-skin-surface-2 mt-3.5 ${muted}`}>
+          No transcript captured for this round.
+        </div>
+      )}
+
+      {ev && ev.pacing_timeline && ev.pacing_timeline.length > 0 && (
+        <div className="mt-4">
+          <div className={`${muted} mb-1.5`}>
+            Average pacing: <strong>{ev.words_per_minute ?? 0} WPM</strong>
+          </div>
+          <PacingGraph
+            timeline={ev.pacing_timeline}
+            durationSeconds={duration}
+          />
+          <div className={`${row} flex-wrap gap-2 mt-2.5`}>
+            <strong>{ev.filler_count ?? 0} filler words</strong>
+            {fillerEntries.map(([w, n]) => <span key={w} className={tag}>{w}: {n}</span>)}
+          </div>
+        </div>
+      )}
+
+      {ev?.structure_star && (
+        <div className="mt-4">
+          {METRIC_KEYS.map(({ key, label }) => {
+            const m = ev[key] as { score: number; feedback: string } | undefined
+            if (!m) return null
+            return (
+              <div key={String(key)} className={metricRow}>
+                <div>
+                  <div className={metricName}>{label}</div>
+                  <div className={metricFb}>{m.feedback}</div>
+                </div>
+                <div className={metricScore}>{m.score.toFixed(1)}/5</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {ev && ((ev.strengths?.length ?? 0) > 0 || (ev.improvements?.length ?? 0) > 0) && (
+        <div className="mt-3.5">
+          {(ev.strengths?.length ?? 0) > 0 && (
+            <>
+              <strong>Strengths</strong>
+              <ul>{ev.strengths!.map((s, i) => <li key={i}>{s}</li>)}</ul>
+            </>
+          )}
+          {(ev.improvements?.length ?? 0) > 0 && (
+            <>
+              <strong>Improvements</strong>
+              <ul>{ev.improvements!.map((s, i) => <li key={i}>{s}</li>)}</ul>
+            </>
+          )}
+        </div>
+      )}
+
+      {ev?.summary && <div className={`${banner} mt-3.5`}>{ev.summary}</div>}
+    </div>
   )
 }
