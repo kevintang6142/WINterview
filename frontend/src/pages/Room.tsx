@@ -18,6 +18,8 @@ interface ServerPlayer {
   picture: string | null
   scores: (number | null)[]
   ready: boolean
+  // True while the client is waiting on Gemini after recording.
+  scoring: boolean
   connected: boolean
   // False when a game just ended and the player hasn't ack'd being back in
   // the lobby via {type: "return"} — shown as disconnected until they do.
@@ -186,7 +188,8 @@ export default function Room() {
   // Keep the browser tab title in sync with the room name while we're here.
   useEffect(() => {
     const prev = document.title
-    if (state?.name) document.title = `${state.name} · WINterview`
+    const label = state?.name?.trim() || state?.code
+    if (label) document.title = `${label} · WINterview`
     return () => { document.title = prev }
   }, [state?.name])
 
@@ -212,7 +215,9 @@ export default function Room() {
         <div className={card}>
           <div className={`${spread} flex-wrap gap-3`}>
             <div>
-              <div className="text-xl font-extrabold leading-tight">{state.name}</div>
+              <div className="text-xl font-extrabold leading-tight">
+                {state.name?.trim() || 'Untitled room'}
+              </div>
               <div className={`${muted} text-xs mt-0.5`}>
                 <span style={{ fontFamily: 'monospace', letterSpacing: '0.12em' }}>{state.code}</span>
                 {' · '}{state.is_public ? 'Public' : 'Private'}
@@ -238,7 +243,6 @@ export default function Room() {
             state={state}
             leaderboard={finalBoard}
             myEvals={storedEvals}
-            onBack={back}
             onLeave={leave}
             onReturn={returnToLobby}
           />
@@ -474,16 +478,16 @@ function SessionView({
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   // Speaking anchor: when MediaRecorder.start() fires. Drives duration_seconds
-  // sent to the backend for pacing analysis. Distinct from the displayed
-  // timer, which comes from state.round_started_at.
+  // sent to the backend for pacing analysis.
   const recordStartRef = useRef(0)
+  // Timer anchor: when the player's answer window began. Set at TTS end for
+  // first-time players, or at mount time for rejoiners (who skip TTS).
+  // Stored as ms-epoch so it survives component re-renders.
+  const timerAnchorRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rafRef = useRef<number>(0)
   const tickRef = useRef<number | null>(null)
   const timedOutRef = useRef(false)
-  // Derived elapsed since the server-authoritative round start. Every client
-  // and every rejoin computes the same number.
-  const roundStartedAt = state.round_started_at
 
   useEffect(() => {
     setScore(null)
@@ -494,6 +498,7 @@ function SessionView({
     setHighlightIndex(-1)
     chunksRef.current = []
     recordStartRef.current = 0
+    timerAnchorRef.current = 0
     timedOutRef.current = false
 
     // Rejoin-in-progress: if the server already has me marked ready for this
@@ -517,6 +522,21 @@ function SessionView({
       return
     }
 
+    // Rejoin mid-round: if the round has been running for more than a short
+    // grace window, this player didn't see the question go live — skip TTS
+    // and jump straight into the recording phase so they don't waste time
+    // re-reading the question while the clock's already ticking.
+    const roundAgeSec = state.round_started_at
+      ? Date.now() / 1000 - state.round_started_at
+      : 0
+    const REJOIN_GRACE = 1.5
+    if (roundAgeSec > REJOIN_GRACE) {
+      timerAnchorRef.current = Date.now()
+      setPhase('ready-to-record')
+      startRecording()
+      return
+    }
+
     setPhase('playing')
     playTTS()
     return () => {
@@ -528,23 +548,22 @@ function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.id])
 
-  // Server-anchored ticker: elapsed = now - state.round_started_at. On refresh
-  // or rejoin this picks up the same running clock. Also enforces the hard
-  // cap client-side so the recorder stops at the right moment even if the
-  // server's round timeout hasn't fired yet.
+  // Local-anchor ticker: displayed timer only starts ticking once the player
+  // is past the "Reading…" state (TTS ended, or rejoin skipped TTS). Hard
+  // cap on the client stops the recorder at max_response_seconds so local
+  // audio doesn't run past the server's own grace.
   useEffect(() => {
     if (phase === 'playing' || phase === 'submitted' || phase === 'error') return
-    if (!roundStartedAt) return
+    if (!timerAnchorRef.current) return
     const maxSecs = state.settings.max_response_seconds
     const applyTick = () => {
-      const e = Math.max(0, Date.now() / 1000 - roundStartedAt)
+      const e = Math.max(0, (Date.now() - timerAnchorRef.current) / 1000)
       setElapsed(e)
       if (e >= maxSecs && !timedOutRef.current) {
         timedOutRef.current = true
         if (mediaRef.current && mediaRef.current.state !== 'inactive') {
           mediaRef.current.stop()
         } else if (phase === 'ready-to-record') {
-          // Perms never resolved before time ran out — submit 0.
           send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
           setScore(0)
           setPhase('submitted')
@@ -556,7 +575,7 @@ function SessionView({
     tickRef.current = iv
     return () => { window.clearInterval(iv); tickRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundStartedAt, phase, state.settings.max_response_seconds])
+  }, [phase, state.settings.max_response_seconds])
 
   const playTTS = async () => {
     try {
@@ -598,9 +617,10 @@ function SessionView({
     }
   }
 
-  // Kick off the user's answer window. Displayed timer is anchored to the
-  // server's round_started_at, so no local timer bookkeeping is needed here.
+  // Kick off the user's answer window. Anchors the local timer to NOW so
+  // the displayed clock starts at 0 when "Reading…" ends.
   const beginAnswerWindow = () => {
+    timerAnchorRef.current = Date.now()
     setPhase('ready-to-record')
     startRecording()
   }
@@ -637,6 +657,9 @@ function SessionView({
 
   const handleAudio = async (blob: Blob, duration: number) => {
     setPhase('processing')
+    // Tell the room we're post-recording so the live leaderboard pill
+    // switches from "answering Qx" to "scoring Qx".
+    send({ type: 'scoring', value: true })
     try {
       const fd = new FormData()
       fd.append('audio', blob, 'answer.webm')
@@ -815,6 +838,17 @@ function ReadyPill({ player, currentIndex }: { player: ServerPlayer; currentInde
       </span>
     )
   }
+  if (player.scoring) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-[var(--blue-100)] text-[var(--blue-800)] border border-[var(--blue-200)] dark:bg-[rgba(96,165,250,0.18)] dark:text-[var(--blue-300)] dark:border-[var(--blue-800)]">
+        <span className="relative inline-flex">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping absolute inset-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] relative" />
+        </span>
+        scoring Q{currentIndex + 1}
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
       <span className="relative inline-flex">
@@ -937,12 +971,11 @@ function IntermissionView({ state, me }: { state: RoomState; me: string }) {
 // Final — table leaderboard + full AI feedback per question
 // ─────────────────────────────────────────────────────────────────────────────
 function FinalView({
-  state, leaderboard, myEvals, onBack, onLeave, onReturn,
+  state, leaderboard, myEvals, onLeave, onReturn,
 }: {
   state: RoomState
   leaderboard: LeaderboardEntry[]
   myEvals: StoredEval[]
-  onBack: () => void
   onLeave: () => void
   onReturn: () => void
 }) {
@@ -954,7 +987,7 @@ function FinalView({
   return (
     <>
       <div className={card} style={{ textAlign: 'center' }}>
-        <div className={`${muted} text-sm`}>Winner of {state.name}</div>
+        <div className={`${muted} text-sm`}>Winner of {state.name?.trim() || 'the room'}</div>
         <div className="text-2xl font-extrabold mt-1">🏆 {winner?.name ?? '—'}</div>
         <div className={`${muted} text-sm mt-1`}>
           {winner ? `${winner.total.toFixed(1)} total · ${winner.avg.toFixed(1)} avg` : ''}
@@ -1018,10 +1051,7 @@ function FinalView({
 
       <div className="flex gap-2 flex-wrap">
         <button className={btnPrimary} onClick={onReturn}>
-          Back to lobby
-        </button>
-        <button className={btnGhost} onClick={onBack}>
-          Back to rooms
+          Back to room
         </button>
         <button className={btnGhost} onClick={onLeave}>
           Leave room

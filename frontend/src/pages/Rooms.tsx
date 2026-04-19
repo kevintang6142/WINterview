@@ -93,7 +93,6 @@ export default function Rooms() {
     setErr(null)
 
     const trimmed = name.trim()
-    if (!trimmed) { setErr('Room name is required.'); return }
     if (trimmed.length > 40) { setErr('Room name must be 40 characters or fewer.'); return }
 
     const qc = Number(questionCount)
@@ -142,10 +141,9 @@ export default function Rooms() {
     <div className={main}>
       <div className={stack}>
         {user?.current_room_code && (
-          <div className={`${card} flex items-center justify-between gap-3 flex-wrap`}
-            style={{ borderColor: 'var(--blue-300)', background: 'var(--blue-50)' }}>
+          <div className={`${card} flex items-center justify-between gap-3 flex-wrap bg-[var(--blue-50)] border-[var(--blue-200)] dark:bg-[rgba(59,130,246,0.12)] dark:border-[var(--blue-800)]`}>
             <div>
-              <strong className="text-[var(--blue-800)]">
+              <strong className="text-[var(--blue-800)] dark:text-[var(--blue-300)]">
                 You're still in{user.current_room_name ? ` "${user.current_room_name}"` : ' a room'}
               </strong>
               <div className={`${muted} text-sm`}>
@@ -190,8 +188,8 @@ export default function Rooms() {
             <summary className="cursor-pointer font-semibold">Create a new room</summary>
             <div className={`${stack} mt-3`}>
               <div>
-                <label className={`${muted} block mb-1`}>Room name (must be unique)</label>
-                <input placeholder="e.g. Kev's FAANG prep"
+                <label className={`${muted} block mb-1`}>Room name (optional)</label>
+                <input placeholder="My Team"
                   value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
               </div>
 
@@ -287,7 +285,7 @@ export default function Rooms() {
                     inProgress ? 'bg-skin-surface-2 hover:bg-skin-surface-2' : 'hover:bg-skin-surface-2'
                   }`}>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-semibold">{r.name}</span>
+                    <span className="font-semibold">{r.name?.trim() || 'Untitled room'}</span>
                     <span style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }} className={`${muted} text-sm`}>
                       {r.code}
                     </span>

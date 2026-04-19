@@ -44,6 +44,10 @@ class Player:
     # score per question (None = not submitted yet / skipped)
     scores: list[float | None] = field(default_factory=list)
     ready: bool = False  # submitted for current question
+    # True while the client is post-recording, waiting on Gemini to score.
+    # Cleared when submit_score lands. Lets other players see "scoring Qx"
+    # instead of the default "answering Qx" pill.
+    scoring: bool = False
     connected: bool = True
     # True whenever the player is "in the room" from the game's POV. Set
     # False when the game ends (so we can distinguish players who ack'd the
@@ -100,6 +104,7 @@ class Room:
                     "picture": p.picture,
                     "scores": p.scores,
                     "ready": p.ready,
+                    "scoring": p.scoring,
                     "connected": p.connected,
                     "returned": p.returned,
                 }
@@ -193,15 +198,9 @@ class RoomManager:
         name: str,
     ) -> Room:
         name = (name or "").strip()
-        if not name:
-            raise ValueError("Room name is required")
         if len(name) > 40:
             raise ValueError("Room name must be 40 characters or fewer")
         async with self._lock:
-            # Name must be unique among active rooms (case-insensitive).
-            existing_names = {r.name.lower() for r in self.rooms.values()}
-            if name.lower() in existing_names:
-                raise ValueError(f"A room named '{name}' already exists")
             for _ in range(20):
                 code = _gen_code()
                 if code not in self.rooms:
@@ -313,16 +312,14 @@ class RoomManager:
         await self._snapshot(room)
 
     async def mark_returned(self, room: Room, user_id: str) -> None:
-        """Player ack'd being back in the lobby (finish-screen → lobby)."""
+        """Player ack'd being back in the lobby (finish-screen → lobby).
+        The room is already lobby-state by the time this fires; we just flip
+        the player's returned flag so they stop showing as disconnected."""
         p = room.players.get(user_id)
-        if not p:
+        if not p or p.returned:
             return
         p.returned = True
-        # First return after game ends also triggers the lobby reset.
-        if room.status == "finished":
-            await self.reset_to_lobby(room)
-        else:
-            await self._snapshot(room)
+        await self._snapshot(room)
 
     # ---------- Close-after-grace ----------
     CLOSE_GRACE_SECONDS: float = 10.0
@@ -369,6 +366,7 @@ class RoomManager:
         for p in room.players.values():
             p.scores = [None] * len(questions)
             p.ready = False
+            p.scoring = False
             p.returned = True  # everyone playing the new game is "in"
         now = time.time()
         room.round_started_at = now
@@ -397,6 +395,17 @@ class RoomManager:
         except asyncio.CancelledError:
             pass
 
+    async def set_scoring(self, room: Room, user_id: str, is_scoring: bool) -> None:
+        if room.status != "running":
+            return
+        p = room.players.get(user_id)
+        if not p or p.ready:
+            return
+        if p.scoring == is_scoring:
+            return
+        p.scoring = is_scoring
+        await self._snapshot(room)
+
     async def submit_score(
         self, room: Room, user_id: str, question_index: int, overall: float | None
     ) -> None:
@@ -411,6 +420,7 @@ class RoomManager:
             overall = max(0.0, min(5.0, float(overall)))
         p.scores[question_index] = overall
         p.ready = True
+        p.scoring = False
         await self._snapshot(room)
         # Advance if everyone connected is done.
         if all(
@@ -422,20 +432,30 @@ class RoomManager:
         if room._round_task and not room._round_task.done():
             room._round_task.cancel()
         if room.current_index + 1 >= len(room.questions):
-            room.status = "finished"
+            # Game done. Capture the final leaderboard, then immediately
+            # reset the room back to lobby state in the same broadcast.
+            # There is no separate "finished" server status — clients hold
+            # the leaderboard locally and render it on top of the lobby
+            # until the player acks via {type: "return"}.
+            final_board = _leaderboard(room)
+            room.status = "lobby"
+            room.questions = []
+            room.current_index = -1
             room.round_deadline = None
             room.round_started_at = None
             room.intermission_until = None
-            # Everyone has to explicitly ack returning to the lobby via
-            # {type: "return"} — until then they're shown as disconnected
-            # when the room auto-resets.
             for p in room.players.values():
+                p.scores = []
+                p.ready = False
+                p.scoring = False
+                # Must ack "Back to room" before they're shown as connected
+                # in the lobby — otherwise they're stuck on the finish screen.
                 p.returned = False
             await self.broadcast(
                 room,
                 {
                     "type": "finished",
-                    "leaderboard": _leaderboard(room),
+                    "leaderboard": final_board,
                     "room": room.public_state(),
                 },
             )
@@ -457,6 +477,7 @@ class RoomManager:
         room.current_index += 1
         for p in room.players.values():
             p.ready = False
+            p.scoring = False
         now = time.time()
         room.round_started_at = now
         room.round_deadline = now + room.settings.max_response_seconds + 30

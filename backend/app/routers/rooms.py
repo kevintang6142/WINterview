@@ -22,7 +22,7 @@ class RoomSettingsBody(BaseModel):
 
 
 class CreateRoomBody(BaseModel):
-    name: str = Field(default="", min_length=1, max_length=40)
+    name: str = Field(default="", max_length=40)
     is_public: bool = True
     settings: RoomSettingsBody = RoomSettingsBody()
 
@@ -170,6 +170,9 @@ async def room_ws(websocket: WebSocket, code: str, token: str = Query(...)):
                     )
                     continue
                 await manager.start(room, questions)
+
+            elif mtype == "scoring":
+                await manager.set_scoring(room, user_id, bool(msg.get("value", True)))
 
             elif mtype == "submit_score":
                 try:
