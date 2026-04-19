@@ -480,14 +480,14 @@ function SessionView({
   // Speaking anchor: when MediaRecorder.start() fires. Drives duration_seconds
   // sent to the backend for pacing analysis.
   const recordStartRef = useRef(0)
-  // Timer anchor: when the player's answer window began. Set at TTS end for
-  // first-time players, or at mount time for rejoiners (who skip TTS).
-  // Stored as ms-epoch so it survives component re-renders.
-  const timerAnchorRef = useRef<number>(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rafRef = useRef<number>(0)
   const tickRef = useRef<number | null>(null)
   const timedOutRef = useRef(false)
+  // Server-authoritative timer anchor. Elapsed = now - round_started_at so
+  // every client sees the same number at the same wall-clock moment and
+  // refresh/rejoin picks up the running clock.
+  const roundStartedAt = state.round_started_at
 
   useEffect(() => {
     setScore(null)
@@ -498,7 +498,6 @@ function SessionView({
     setHighlightIndex(-1)
     chunksRef.current = []
     recordStartRef.current = 0
-    timerAnchorRef.current = 0
     timedOutRef.current = false
 
     // Rejoin-in-progress: if the server already has me marked ready for this
@@ -531,7 +530,6 @@ function SessionView({
       : 0
     const REJOIN_GRACE = 1.5
     if (roundAgeSec > REJOIN_GRACE) {
-      timerAnchorRef.current = Date.now()
       setPhase('ready-to-record')
       startRecording()
       return
@@ -548,22 +546,24 @@ function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.id])
 
-  // Local-anchor ticker: displayed timer only starts ticking once the player
-  // is past the "Reading…" state (TTS ended, or rejoin skipped TTS). Hard
-  // cap on the client stops the recorder at max_response_seconds so local
-  // audio doesn't run past the server's own grace.
+  // Server-authoritative ticker: elapsed = now - round_started_at. Every
+  // client sees the same value at the same moment; refresh/rejoin picks up
+  // the running clock instead of resetting; time spent away from the tab
+  // still counts against the budget. Hard-cap enforced locally too so the
+  // recorder stops cleanly when time runs out.
   useEffect(() => {
-    if (phase === 'playing' || phase === 'submitted' || phase === 'error') return
-    if (!timerAnchorRef.current) return
+    if (phase === 'submitted' || phase === 'error') return
+    if (!roundStartedAt) return
     const maxSecs = state.settings.max_response_seconds
     const applyTick = () => {
-      const e = Math.max(0, (Date.now() - timerAnchorRef.current) / 1000)
+      const e = Math.max(0, Date.now() / 1000 - roundStartedAt)
       setElapsed(e)
       if (e >= maxSecs && !timedOutRef.current) {
         timedOutRef.current = true
         if (mediaRef.current && mediaRef.current.state !== 'inactive') {
           mediaRef.current.stop()
-        } else if (phase === 'ready-to-record') {
+        } else if (phase === 'ready-to-record' || phase === 'playing') {
+          // Recorder never went live before the cap — submit a zero.
           send({ type: 'submit_score', question_index: state.current_index, overall: 0 })
           setScore(0)
           setPhase('submitted')
@@ -575,7 +575,7 @@ function SessionView({
     tickRef.current = iv
     return () => { window.clearInterval(iv); tickRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, state.settings.max_response_seconds])
+  }, [roundStartedAt, phase, state.settings.max_response_seconds])
 
   const playTTS = async () => {
     try {
@@ -617,10 +617,10 @@ function SessionView({
     }
   }
 
-  // Kick off the user's answer window. Anchors the local timer to NOW so
-  // the displayed clock starts at 0 when "Reading…" ends.
+  // Kick off the user's answer window after TTS has finished. Timer is
+  // server-authoritative (state.round_started_at) so we don't set any local
+  // anchor here.
   const beginAnswerWindow = () => {
-    timerAnchorRef.current = Date.now()
     setPhase('ready-to-record')
     startRecording()
   }
@@ -756,9 +756,12 @@ function SessionView({
               Scoring…
             </button>
           ) : (
-            <button className={`${micBase} bg-skin-accent text-white opacity-50 cursor-not-allowed`} disabled>
-              {phase === 'playing' ? 'Reading…' : '…'}
-            </button>
+            <>
+              <button className={`${micBase} bg-skin-accent text-white opacity-50 cursor-not-allowed`} disabled>
+                {phase === 'playing' ? 'Reading…' : '…'}
+              </button>
+              <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
+            </>
           )}
         </div>
 
