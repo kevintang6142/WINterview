@@ -373,27 +373,35 @@ function LobbyView({
           Settings {!isHost && <span className={`${muted} text-xs font-normal`}>(host-only)</span>}
         </h3>
         <div className={stack}>
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className={muted}>Questions (1–10)</label>
-            <input type="number" value={questionCount}
-              disabled={!isHost}
-              onChange={(e) => setQuestionCount(e.target.value)}
-              style={{ width: 80 }} />
-            <label className={muted}>Max answer time (s, 30–600)</label>
-            <input type="number" value={maxResponseSeconds}
-              disabled={!isHost}
-              onChange={(e) => setMaxResponseSeconds(e.target.value)}
-              style={{ width: 90 }} />
-            <label className={muted}>Max players (2–20)</label>
-            <input type="number" value={maxPlayers}
-              disabled={!isHost}
-              onChange={(e) => setMaxPlayers(e.target.value)}
-              style={{ width: 80 }} />
-            <label className={muted}>Between rounds (s, 0–30)</label>
-            <input type="number" value={betweenRoundsSeconds}
-              disabled={!isHost}
-              onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
-              style={{ width: 80 }} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className={muted}>Questions (1–10)</span>
+              <input type="number" value={questionCount}
+                disabled={!isHost}
+                onChange={(e) => setQuestionCount(e.target.value)}
+                className="w-24 max-w-full" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={muted}>Max answer time (s, 30–600)</span>
+              <input type="number" value={maxResponseSeconds}
+                disabled={!isHost}
+                onChange={(e) => setMaxResponseSeconds(e.target.value)}
+                className="w-28 max-w-full" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={muted}>Max players (2–20)</span>
+              <input type="number" value={maxPlayers}
+                disabled={!isHost}
+                onChange={(e) => setMaxPlayers(e.target.value)}
+                className="w-24 max-w-full" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={muted}>Between rounds (s, 0–30)</span>
+              <input type="number" value={betweenRoundsSeconds}
+                disabled={!isHost}
+                onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
+                className="w-24 max-w-full" />
+            </label>
           </div>
           <div>
             <label className={`${muted} block mb-1`}>Company (optional)</label>

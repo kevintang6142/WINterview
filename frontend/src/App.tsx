@@ -17,30 +17,32 @@ import { ReactNode } from 'react'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
-  if (!ready) return <div className="max-w-[1100px] mx-auto p-6"><div className="bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin">Loading…</div></div>
+  if (!ready) return <div className="max-w-[1100px] mx-auto px-4 sm:px-5 py-6"><div className="bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin">Loading…</div></div>
   if (!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
 export default function App() {
   return (
-    <div className="grid grid-rows-[auto_1fr] min-h-full">
+    <div className="grid grid-rows-[auto_1fr] min-h-full min-w-0">
       <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/question/:id" element={<QuestionDetail />} />
-        <Route path="/response/:id" element={<ResponseDetail />} />
-        <Route path="/practice" element={<RequireAuth><SessionSetup /></RequireAuth>} />
-        <Route path="/session/:id" element={<RequireAuth><SessionRun /></RequireAuth>} />
-        <Route path="/session/:id/result" element={<RequireAuth><SessionResult /></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-        <Route path="/rooms" element={<RequireAuth><Rooms /></RequireAuth>} />
-        <Route path="/rooms/:code" element={<RequireAuth><Room /></RequireAuth>} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <main className="min-w-0">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/question/:id" element={<QuestionDetail />} />
+          <Route path="/response/:id" element={<ResponseDetail />} />
+          <Route path="/practice" element={<RequireAuth><SessionSetup /></RequireAuth>} />
+          <Route path="/session/:id" element={<RequireAuth><SessionRun /></RequireAuth>} />
+          <Route path="/session/:id/result" element={<RequireAuth><SessionResult /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/rooms" element={<RequireAuth><Rooms /></RequireAuth>} />
+          <Route path="/rooms/:code" element={<RequireAuth><Room /></RequireAuth>} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </main>
     </div>
   )
 }

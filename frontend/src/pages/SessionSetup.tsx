@@ -202,11 +202,11 @@ export default function SessionSetup() {
                 info={companyInfo?.mode === 'random' ? companyInfo : null}
               />
               <div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                   <label className={muted}>Number of questions (1–10)</label>
                   <input type="number" value={count}
                     onChange={(e) => setCount(e.target.value)}
-                    style={{ width: 80 }} />
+                    className="w-20 max-w-full" />
                 </div>
               </div>
               <div>
@@ -295,7 +295,7 @@ export default function SessionSetup() {
               </div>
 
               {/* Sort controls */}
-              <div className={`${row} gap-2 mt-3 pt-3 border-t border-skin-border`}>
+              <div className={`${row} flex-wrap gap-2 mt-3 pt-3 border-t border-skin-border`}>
                 <span className={`${muted} text-xs shrink-0`}>Sort:</span>
                 {(['text', 'category'] as PickSortMode[]).map((s) => (
                   <button
@@ -389,7 +389,7 @@ function CompanyFilterBlock({
       <label className={`${muted} block mb-1.5`}>
         Company <span className="text-xs">(optional — Brave + Gemini will pick the categories this company tends to ask about)</span>
       </label>
-      <div className="flex items-stretch gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch gap-2">
         <div className="flex-1 min-w-0">
           <CompanyAutocomplete value={company} onChange={setCompany} />
         </div>
@@ -397,7 +397,7 @@ function CompanyFilterBlock({
           type="submit"
           disabled={!trimmed || busy}
           title="Filter categories based on what this company typically asks about (press Enter)"
-          className={`${btnPrimary} whitespace-nowrap inline-flex items-center gap-1.5`}
+          className={`${btnPrimary} w-full sm:w-auto justify-center inline-flex items-center gap-1.5`}
         >
           <svg
             width="14" height="14" viewBox="0 0 20 20" fill="none"

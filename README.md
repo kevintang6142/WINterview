@@ -58,6 +58,22 @@ npm run dev                             # http://localhost:5173
 
 Open http://localhost:5173, sign in with Google, click **Start practice**.
 
+## Quick start (Windows)
+
+From the repo root, run one command to start both backend and frontend:
+
+```powershell
+.\start-local.ps1
+```
+
+This opens two PowerShell windows (backend and frontend).
+
+Optional flags:
+
+```powershell
+.\start-local.ps1 -SkipInstall -SkipSeed
+```
+
 ## Architecture
 
 ```
