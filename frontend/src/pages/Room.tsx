@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { useSettings } from '../settings'
 import {
   main, card, stack, spread, row, muted, tag, banner, bigQuestion, scorePill,
   metricRow, metricName, metricFb, metricScore,
@@ -476,6 +477,7 @@ function SessionView({
   send: (m: any) => void
   recordEval: (e: StoredEval) => void
 }) {
+  const { settings } = useSettings()
   const q = state.current_question!
   const [phase, setPhase] = useState<Phase>('playing')
   const [elapsed, setElapsed] = useState(0)
@@ -590,7 +592,10 @@ function SessionView({
 
   const playTTS = async () => {
     try {
-      const resp = await api.post('/voice/tts-timed', { text: q.text })
+      const resp = await api.post('/voice/tts-timed', {
+        text: q.text,
+        voice_id: settings.ttsVoiceId,
+      })
       const ws: WordTiming[] = resp.words || []
       const segs: Segment[] = resp.segments || []
       setAlignment({ words: ws, segments: segs })

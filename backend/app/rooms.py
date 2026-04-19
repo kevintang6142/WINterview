@@ -332,7 +332,10 @@ class RoomManager:
         await self._snapshot(room)
 
     # ---------- Close-after-grace ----------
-    CLOSE_GRACE_SECONDS: float = 10.0
+    # How long a room sticks around after everyone's gone. Gives players a
+    # real window to come back after a browser crash or a quick break before
+    # the room is garbage-collected.
+    CLOSE_GRACE_SECONDS: float = 300.0  # 5 minutes
 
     def _schedule_close(self, room: Room) -> None:
         if room._close_task and not room._close_task.done():

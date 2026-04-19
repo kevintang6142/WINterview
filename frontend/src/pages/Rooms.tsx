@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { main, card, stack, spread, muted, btnPrimary, btnGhost } from '../lib/ui'
-import { ALL_CATEGORIES } from '../lib/categories'
 
 interface PublicRoom {
   code: string
@@ -19,18 +18,6 @@ interface PublicRoom {
   created_at: string
 }
 
-const RANGES = {
-  questions: { min: 1, max: 10 },
-  seconds: { min: 30, max: 600 },
-  players: { min: 2, max: 20 },
-}
-
-function rangeError(label: string, value: number, { min, max }: { min: number; max: number }) {
-  if (!Number.isFinite(value)) return `${label}: must be a number`
-  if (value < min || value > max) return `${label}: must be between ${min} and ${max}`
-  return null
-}
-
 export default function Rooms() {
   const nav = useNavigate()
   const { user, refresh: refreshAuth } = useAuth()
@@ -40,22 +27,10 @@ export default function Rooms() {
   const [creating, setCreating] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  // Form state — inputs hold raw strings so the user can type anything.
+  // Create-room form is now just name + public visibility — everything
+  // else is configured in the lobby after creation.
   const [name, setName] = useState('')
   const [isPublic, setIsPublic] = useState(true)
-  const [questionCount, setQuestionCount] = useState('3')
-  const [maxResponseSeconds, setMaxResponseSeconds] = useState('180')
-  const [maxPlayers, setMaxPlayers] = useState('8')
-  const [betweenRoundsSeconds, setBetweenRoundsSeconds] = useState('3')
-  const [company, setCompany] = useState('')
-  const [categories, setCategories] = useState<Set<string>>(new Set(ALL_CATEGORIES))
-
-  const toggleCat = (cat: string) =>
-    setCategories((prev) => {
-      const n = new Set(prev)
-      if (n.has(cat)) n.delete(cat); else n.add(cat)
-      return n
-    })
 
   // Only show the spinner on the very first fetch; periodic polls should
   // update data in place without flashing "Loading…".
@@ -91,36 +66,16 @@ export default function Rooms() {
 
   const create = async () => {
     setErr(null)
-
     const trimmed = name.trim()
     if (trimmed.length > 40) { setErr('Room name must be 40 characters or fewer.'); return }
-
-    const qc = Number(questionCount)
-    const ms = Number(maxResponseSeconds)
-    const mp = Number(maxPlayers)
-    const br = Number(betweenRoundsSeconds)
-    const issues = [
-      rangeError('Questions', qc, RANGES.questions),
-      rangeError('Max time per answer', ms, RANGES.seconds),
-      rangeError('Max players', mp, RANGES.players),
-      rangeError('Between rounds', br, { min: 0, max: 30 }),
-    ].filter(Boolean) as string[]
-    if (issues.length) { setErr(issues.join(' · ')); return }
-
     setCreating(true)
     try {
-      const cats = categories.size < ALL_CATEGORIES.length ? [...categories] : []
+      // Only send name + is_public. The backend uses its own sensible
+      // defaults for question_count / max_response_seconds / etc., and the
+      // host can tweak everything from the lobby settings panel.
       const res = await api.post('/rooms', {
         name: trimmed,
         is_public: isPublic,
-        settings: {
-          question_count: qc,
-          max_response_seconds: ms,
-          max_players: mp,
-          between_rounds_seconds: br,
-          company: company.trim() || null,
-          categories: cats,
-        },
       })
       nav(`/rooms/${res.code}`)
     } catch (e: any) {
@@ -183,95 +138,35 @@ export default function Rooms() {
             </button>
           </form>
 
-          <details className="mb-2">
-            <summary className="cursor-pointer font-semibold">Create a new room</summary>
-            <div className={`${stack} mt-3`}>
-              <div>
-                <label className={`${muted} block mb-1`}>Room name (optional)</label>
-                <input placeholder="My Team"
-                  value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-              </div>
-
-              <div className="flex items-center gap-4 flex-wrap">
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={isPublic}
-                    onChange={(e) => setIsPublic(e.target.checked)}
-                    style={{ width: 16, height: 16 }} />
-                  <span>Public (anyone can join from this list)</span>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <label className="flex flex-col gap-1">
-                  <span className={muted}>Questions (1–10)</span>
-                  <input type="number" value={questionCount}
-                    onChange={(e) => setQuestionCount(e.target.value)}
-                    className="w-24 max-w-full" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className={muted}>Max time per answer (s, 30–600)</span>
-                  <input type="number" value={maxResponseSeconds}
-                    onChange={(e) => setMaxResponseSeconds(e.target.value)}
-                    className="w-28 max-w-full" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className={muted}>Max players (2–20)</span>
-                  <input type="number" value={maxPlayers}
-                    onChange={(e) => setMaxPlayers(e.target.value)}
-                    className="w-24 max-w-full" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className={muted}>Between rounds (s, 0–30)</span>
-                  <input type="number" value={betweenRoundsSeconds}
-                    onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
-                    className="w-24 max-w-full" />
-                </label>
-              </div>
-
-              <div>
-                <label className={`${muted} block mb-1`}>Company (optional)</label>
-                <input placeholder="e.g. Google, Stripe, your startup"
-                  value={company} onChange={(e) => setCompany(e.target.value)} />
-              </div>
-
-              <div>
-                <div className={`${muted} mb-2`}>
-                  Categories&nbsp;
-                  <span className="text-xs">
-                    ({categories.size} / {ALL_CATEGORIES.length} selected — questions are sampled from these)
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {ALL_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => toggleCat(cat)}
-                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                        categories.has(cat)
-                          ? 'bg-skin-accent text-white border-skin-accent'
-                          : 'border-skin-border text-skin-muted'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                  <button type="button" className={`${muted} text-xs underline`}
-                    onClick={() => setCategories(new Set(ALL_CATEGORIES))}>All</button>
-                  <button type="button" className={`${muted} text-xs underline`}
-                    onClick={() => setCategories(new Set())}>None</button>
-                </div>
-              </div>
-
-              {err && <div className="text-skin-danger text-sm">{err}</div>}
-
-              <div>
-                <button className={btnPrimary} onClick={create} disabled={creating}>
-                  {creating ? 'Creating…' : 'Create room'}
-                </button>
-              </div>
-            </div>
-          </details>
+          {/* Create a new room — just the essentials. Everything else
+              (question count, time caps, categories, company, etc.) lives
+              in the lobby settings panel once the host is inside the room. */}
+          <div className="font-semibold mb-2">Create a new room</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className={`${muted} text-xs`}>Room name (optional)</span>
+              <input
+                placeholder="My Team"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={40}
+                className="w-[200px] max-w-full"
+              />
+            </label>
+            <label className="inline-flex items-center gap-2 pb-2">
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                style={{ width: 16, height: 16 }}
+              />
+              <span>Public</span>
+            </label>
+            <button className={btnPrimary} onClick={create} disabled={creating}>
+              {creating ? 'Creating…' : 'Create room'}
+            </button>
+          </div>
+          {err && <div className="text-skin-danger text-sm mt-2">{err}</div>}
         </div>
 
         <div className={card}>
