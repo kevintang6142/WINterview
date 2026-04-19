@@ -84,8 +84,8 @@ export default function Profile() {
         )}
         {items.map((r) => (
           <div key={r.id} className={card}>
-            <div className="flex justify-between items-center gap-2.5">
-              <Link to={`/response/${r.id}`} className="text-skin-text hover:no-underline">
+            <div className="flex justify-between items-start sm:items-center gap-2.5 flex-wrap">
+              <Link to={`/response/${r.id}`} className="text-skin-text hover:no-underline min-w-0 flex-1">
                 <div className="font-semibold">{r.question_text}</div>
               </Link>
               {r.overall_score != null && <span className={scorePill}>{r.overall_score.toFixed(1)}/5</span>}
@@ -97,7 +97,7 @@ export default function Profile() {
               </div>
             )}
             <div className={`${muted} mt-1`}>{r.transcript_preview}…</div>
-            <div className={`${row} mt-2.5`}>
+            <div className={`${row} mt-2.5 flex-wrap`}>
               <span className={tag}>{r.is_public ? 'Public' : 'Private'}</span>
               {r.is_public && (
                 <span className={muted}>
@@ -108,7 +108,7 @@ export default function Profile() {
               {r.is_public && r.comment_count != null && (
                 <span className={muted}>💬 {r.comment_count}</span>
               )}
-              <div className="ml-auto flex gap-2">
+              <div className="w-full sm:w-auto sm:ml-auto flex gap-2 justify-end">
                 <button className={btnSmGhost} onClick={() => togglePublic(r.id, r.is_public)}>
                   {r.is_public ? 'Make private' : 'Make public'}
                 </button>

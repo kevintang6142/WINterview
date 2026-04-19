@@ -29,3 +29,5 @@ Thumbs.db
 # Editors
 .idea/
 .vscode/
+
+.env.backup-*

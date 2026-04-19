@@ -17,7 +17,7 @@ import { ReactNode } from 'react'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
-  if (!ready) return <div className="max-w-[1100px] mx-auto p-6"><div className="bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin">Loading…</div></div>
+  if (!ready) return <div className="max-w-[1100px] mx-auto px-4 sm:px-5 py-6"><div className="bg-skin-surface border border-skin-border rounded-skin p-4 shadow-skin">Loading…</div></div>
   if (!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }

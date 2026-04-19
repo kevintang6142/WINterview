@@ -144,7 +144,7 @@ export default function Search() {
           </div>
 
           {/* Sort controls */}
-          <div className={`${row} gap-2 mt-3 pt-3 border-t border-skin-border`}>
+          <div className={`${row} flex-wrap gap-2 mt-3 pt-3 border-t border-skin-border`}>
             <span className={`${muted} text-xs shrink-0`}>Sort:</span>
             {(['text', 'category', 'responses'] as SortMode[]).map((s) => (
               <button
@@ -178,7 +178,7 @@ export default function Search() {
             <div className={`flex items-center flex-wrap gap-1.5 mt-2`}>
               {it.category && <span className={tag}>{it.category}</span>}
               <MasteryDropdown questionId={it.id} />
-              <span className={`${muted} ml-auto`}>
+              <span className={`${muted} w-full sm:w-auto sm:ml-auto`}>
                 {it.public_response_count} response{it.public_response_count === 1 ? '' : 's'}
                 {it.avg_rating != null ? ` · ⭐ ${it.avg_rating.toFixed(1)}` : ''}
               </span>

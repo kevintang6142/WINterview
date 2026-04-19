@@ -166,13 +166,12 @@ export default function Rooms() {
 
           <form className="flex items-stretch gap-2 mb-4 flex-wrap" onSubmit={join}>
             <input
+              className="w-full sm:w-[180px]"
               placeholder="ROOM CODE"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               maxLength={8}
               style={{
-                width: 180,
-                flex: '0 0 auto',
                 textTransform: 'uppercase',
                 fontFamily: 'monospace',
                 letterSpacing: '0.18em',
@@ -202,23 +201,31 @@ export default function Rooms() {
                 </label>
               </div>
 
-              <div className="flex items-center gap-4 flex-wrap">
-                <label className={muted}>Questions (1–10)</label>
-                <input type="number" value={questionCount}
-                  onChange={(e) => setQuestionCount(e.target.value)}
-                  style={{ width: 80 }} />
-                <label className={muted}>Max time per answer (s, 30–600)</label>
-                <input type="number" value={maxResponseSeconds}
-                  onChange={(e) => setMaxResponseSeconds(e.target.value)}
-                  style={{ width: 90 }} />
-                <label className={muted}>Max players (2–20)</label>
-                <input type="number" value={maxPlayers}
-                  onChange={(e) => setMaxPlayers(e.target.value)}
-                  style={{ width: 80 }} />
-                <label className={muted}>Between rounds (s, 0–30)</label>
-                <input type="number" value={betweenRoundsSeconds}
-                  onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
-                  style={{ width: 80 }} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className={muted}>Questions (1–10)</span>
+                  <input type="number" value={questionCount}
+                    onChange={(e) => setQuestionCount(e.target.value)}
+                    className="w-24 max-w-full" />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className={muted}>Max time per answer (s, 30–600)</span>
+                  <input type="number" value={maxResponseSeconds}
+                    onChange={(e) => setMaxResponseSeconds(e.target.value)}
+                    className="w-28 max-w-full" />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className={muted}>Max players (2–20)</span>
+                  <input type="number" value={maxPlayers}
+                    onChange={(e) => setMaxPlayers(e.target.value)}
+                    className="w-24 max-w-full" />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className={muted}>Between rounds (s, 0–30)</span>
+                  <input type="number" value={betweenRoundsSeconds}
+                    onChange={(e) => setBetweenRoundsSeconds(e.target.value)}
+                    className="w-24 max-w-full" />
+                </label>
               </div>
 
               <div>
@@ -315,7 +322,7 @@ export default function Rooms() {
                     <span className={`${muted} text-sm`}>
                       hosted by {r.host_name ?? '—'}
                     </span>
-                    <span className={`${muted} text-sm ml-auto`}>
+                    <span className={`${muted} text-sm w-full sm:w-auto sm:ml-auto`}>
                       {r.player_count}/{r.max_players} · {r.question_count} Qs
                       {r.company ? ` · ${r.company}` : ''}
                     </span>

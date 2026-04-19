@@ -5,9 +5,9 @@
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 export const main =
-  'max-w-[1100px] mx-auto w-full px-5 py-6 pb-16 grid grid-cols-1 gap-5'
+  'max-w-[1100px] mx-auto w-full px-4 sm:px-5 py-6 pb-16 grid grid-cols-1 gap-5'
 export const mainSidebar =
-  'max-w-[1100px] mx-auto w-full px-5 py-6 pb-16 grid grid-cols-1 min-[900px]:grid-cols-[1fr_280px] gap-5'
+  'max-w-[1100px] mx-auto w-full px-4 sm:px-5 py-6 pb-16 grid grid-cols-1 min-[900px]:grid-cols-[1fr_280px] gap-5'
 export const sidebar =
   'bg-skin-surface border border-skin-border rounded-skin p-4 h-fit'
 
@@ -17,7 +17,7 @@ export const card =
 
 // ── Utility classes ───────────────────────────────────────────────────────────
 export const row    = 'flex items-center gap-2.5'
-export const spread = 'flex justify-between items-center gap-2.5'
+export const spread = 'flex justify-between items-center gap-2.5 flex-wrap'
 export const stack  = 'flex flex-col gap-2.5'
 export const muted  = 'text-skin-muted text-[13px]'
 

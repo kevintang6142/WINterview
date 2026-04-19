@@ -36,7 +36,7 @@ export default function ResponseCard({ item, onTogglePublic, onDelete }: Props) 
         <span>⭐ {rating != null ? rating.toFixed(1) : '—'}{rc ? ` (${rc})` : ''}</span>
         <span>💬 {cc}</span>
         {showActions && (
-          <div className="ml-auto flex gap-2">
+          <div className="w-full sm:w-auto sm:ml-auto flex gap-2 justify-end">
             {onTogglePublic && (
               <button className={btnSmGhost} onClick={() => onTogglePublic(item.id, !!item.is_public)}>
                 {item.is_public ? 'Make private' : 'Make public'}
