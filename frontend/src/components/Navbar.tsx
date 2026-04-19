@@ -26,19 +26,19 @@ export default function Navbar() {
           {user && <NavLink to="/profile" className={navLink}>Profile</NavLink>}
           <NavLink to="/settings" className={navLink}>Settings</NavLink>
         </div>
-        <div className="ml-auto flex items-center gap-2 min-w-0">
+        <div className="order-2 basis-full sm:order-none sm:basis-auto sm:ml-auto flex items-center justify-end gap-2 min-w-0">
           {user ? (
             <>
               <Link to="/profile" className="flex items-center gap-2 hover:no-underline min-w-0">
                 {user.picture && <img className={thumb} src={user.picture} alt="" />}
                 <span className="hidden md:inline text-skin-muted text-[13px]">{user.name}</span>
               </Link>
-              <button className={`${btnSmGhost} shrink-0`} onClick={() => { logout(); navigate('/') }}>
+              <button className={btnSmGhost} onClick={() => { logout(); navigate('/') }}>
                 Sign out
               </button>
             </>
           ) : (
-            <Link to="/login" className={`${btnPrimary} shrink-0`}>Sign in</Link>
+            <Link to="/login" className={btnPrimary}>Sign in</Link>
           )}
         </div>
       </div>
