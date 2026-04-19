@@ -6,7 +6,7 @@ import { useSettings } from '../settings'
 import {
   main, card, stack, spread, row, muted, tag, banner, bigQuestion, scorePill,
   metricRow, metricName, metricFb, metricScore,
-  btnPrimary, btnGhost, thumb, ttsWord, ttsActive,
+  btnPrimary, btnDanger, btnGhost, thumb, ttsWord, ttsActive,
 } from '../lib/ui'
 import PacingGraph from '../components/PacingGraph'
 import { ALL_CATEGORIES } from '../lib/categories'
@@ -70,6 +70,8 @@ interface StoredEval {
   question_category: string
   evaluation: Evaluation | null
   transcript: string
+  response_id?: string
+  is_public?: boolean
 }
 
 interface WordTiming { start: number; end: number; word: string }
@@ -188,6 +190,13 @@ export default function Room() {
     })
   }
 
+  const togglePublic = async (responseId: string, current: boolean) => {
+    await api.post(`/responses/${responseId}/public`, { is_public: !current })
+    setStoredEvals((arr) =>
+      arr.map((e) => e.response_id === responseId ? { ...e, is_public: !current } : e)
+    )
+  }
+
   // Keep the browser tab title in sync with the room name while we're here.
   useEffect(() => {
     const prev = document.title
@@ -248,6 +257,7 @@ export default function Room() {
             myEvals={storedEvals}
             onLeave={leave}
             onReturn={returnToLobby}
+            onTogglePublic={togglePublic}
           />
         )}
 
@@ -548,8 +558,12 @@ function SessionView({
       return
     }
 
-    setPhase('playing')
-    playTTS()
+    if (settings.ttsEnabled) {
+      setPhase('playing')
+      playTTS()
+    } else {
+      beginAnswerWindow()
+    }
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current)
       cancelAnimationFrame(rafRef.current)
@@ -699,6 +713,8 @@ function SessionView({
         question_category: q.category || '',
         evaluation: ev ?? null,
         transcript,
+        response_id: saved?.id,
+        is_public: saved?.is_public ?? false,
       })
       send({ type: 'submit_score', question_index: state.current_index, overall })
       setPhase('submitted')
@@ -778,7 +794,9 @@ function SessionView({
               <button className={`${micBase} bg-skin-accent text-white opacity-50 cursor-not-allowed`} disabled>
                 {phase === 'playing' ? 'Reading…' : '…'}
               </button>
-              <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
+              {phase !== 'playing' && (
+                <div className={`${muted} tabular-nums`}>{fmt(elapsed)} / {fmt(maxSecs)}</div>
+              )}
             </>
           )}
         </div>
@@ -992,13 +1010,14 @@ function IntermissionView({ state, me }: { state: RoomState; me: string }) {
 // Final — table leaderboard + full AI feedback per question
 // ─────────────────────────────────────────────────────────────────────────────
 function FinalView({
-  state, leaderboard, myEvals, onLeave, onReturn,
+  state, leaderboard, myEvals, onLeave, onReturn, onTogglePublic,
 }: {
   state: RoomState
   leaderboard: LeaderboardEntry[]
   myEvals: StoredEval[]
   onLeave: () => void
   onReturn: () => void
+  onTogglePublic: (responseId: string, current: boolean) => void
 }) {
   const winner = leaderboard[0]
   // Trust the leaderboard for column count — state may already be lobby.
@@ -1065,7 +1084,7 @@ function FinalView({
             your transcript and pacing data — never the AI scores or feedback.
           </div>
           {myEvals.map((e) => (
-            <FeedbackBlock key={e.question_index} entry={e} />
+            <FeedbackBlock key={e.question_index} entry={e} onTogglePublic={onTogglePublic} />
           ))}
         </>
       )}
@@ -1088,7 +1107,7 @@ function fmtDuration(seconds?: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-function FeedbackBlock({ entry }: { entry: StoredEval }) {
+function FeedbackBlock({ entry, onTogglePublic }: { entry: StoredEval; onTogglePublic?: (responseId: string, current: boolean) => void }) {
   const ev = entry.evaluation
   const fillerEntries = ev?.filler_words ? Object.entries(ev.filler_words) : []
   const duration = ev?.duration_seconds ?? 0
@@ -1175,6 +1194,18 @@ function FeedbackBlock({ entry }: { entry: StoredEval }) {
       )}
 
       {ev?.summary && <div className={`${banner} mt-3.5`}>{ev.summary}</div>}
+
+      {entry.response_id && (
+        <div className={`${row} mt-3.5`}>
+          <button
+            className={entry.is_public ? btnDanger : btnPrimary}
+            onClick={() => onTogglePublic?.(entry.response_id!, entry.is_public ?? false)}
+          >
+            {entry.is_public ? 'Make private' : 'Make public'}
+          </button>
+          <Link to={`/response/${entry.response_id}`} className={btnGhost}>View shareable page</Link>
+        </div>
+      )}
     </div>
   )
 }

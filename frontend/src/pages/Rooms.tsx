@@ -113,7 +113,7 @@ export default function Rooms() {
         )}
 
         <div className={card}>
-          <h3 className="mt-0 mb-3">Interview competition rooms</h3>
+          <div className="font-semibold mb-3">Interview competition rooms</div>
           <p className={`${muted} text-sm mt-0 mb-3`}>
             Create a room, invite friends by code (or make it public), and race
             through behavioral questions together. Highest total AI score wins.
@@ -142,29 +142,30 @@ export default function Rooms() {
               (question count, time caps, categories, company, etc.) lives
               in the lobby settings panel once the host is inside the room. */}
           <div className="font-semibold mb-2">Create a new room</div>
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1">
-              <span className={`${muted} text-xs`}>Room name (optional)</span>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
-                placeholder="My Team"
+                placeholder="Room name (optional)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={40}
                 className="w-[200px] max-w-full"
               />
-            </label>
-            <label className="inline-flex items-center gap-2 pb-2">
-              <input
-                type="checkbox"
-                checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
-                style={{ width: 16, height: 16 }}
-              />
-              <span>Public</span>
-            </label>
-            <button className={btnPrimary} onClick={create} disabled={creating}>
-              {creating ? 'Creating…' : 'Create room'}
-            </button>
+              <button className={btnPrimary} onClick={create} disabled={creating}>
+                {creating ? 'Creating…' : 'Create room'}
+              </button>
+            </div>
+            <div>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                  style={{ width: 16, height: 16 }}
+                />
+                <span>Public</span>
+              </label>
+            </div>
           </div>
           {err && <div className="text-skin-danger text-sm mt-2">{err}</div>}
         </div>
