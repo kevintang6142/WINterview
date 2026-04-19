@@ -24,23 +24,25 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <div className="grid grid-rows-[auto_1fr] min-h-full">
+    <div className="grid grid-rows-[auto_1fr] min-h-full min-w-0">
       <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/question/:id" element={<QuestionDetail />} />
-        <Route path="/response/:id" element={<ResponseDetail />} />
-        <Route path="/practice" element={<RequireAuth><SessionSetup /></RequireAuth>} />
-        <Route path="/session/:id" element={<RequireAuth><SessionRun /></RequireAuth>} />
-        <Route path="/session/:id/result" element={<RequireAuth><SessionResult /></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-        <Route path="/rooms" element={<RequireAuth><Rooms /></RequireAuth>} />
-        <Route path="/rooms/:code" element={<RequireAuth><Room /></RequireAuth>} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <main className="min-w-0">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/question/:id" element={<QuestionDetail />} />
+          <Route path="/response/:id" element={<ResponseDetail />} />
+          <Route path="/practice" element={<RequireAuth><SessionSetup /></RequireAuth>} />
+          <Route path="/session/:id" element={<RequireAuth><SessionRun /></RequireAuth>} />
+          <Route path="/session/:id/result" element={<RequireAuth><SessionResult /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/rooms" element={<RequireAuth><Rooms /></RequireAuth>} />
+          <Route path="/rooms/:code" element={<RequireAuth><Room /></RequireAuth>} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </main>
     </div>
   )
 }
