@@ -92,9 +92,9 @@ function CategoryRatingForm({
         <>
           {RATING_CATEGORIES.map(({ key, label, guide }) => (
             <div key={key}>
-              <div className="flex flex-wrap items-center justify-between gap-1 mb-0.5">
+              <div className="flex items-center justify-between mb-0.5">
                 <span className="text-sm font-medium">{label}</span>
-                <span className={`${muted} text-xs w-full sm:w-auto sm:text-right`}>{draft[key] > 0 ? `${draft[key]}/5` : ''}</span>
+                <span className={`${muted} text-xs`}>{draft[key] > 0 ? `${draft[key]}/5` : ''}</span>
               </div>
               <div className={`${muted} text-xs mb-1.5`}>{guide}</div>
               <div className="flex gap-1">
@@ -266,7 +266,7 @@ export default function ResponseDetail() {
             <span>Time: <strong>{fmtDuration(data.duration_seconds || ev.duration_seconds)}</strong></span>
             {ev.word_count != null && <span>Words: <strong>{ev.word_count}</strong></span>}
             {data.created_at && (
-              <span className="w-full sm:w-auto sm:ml-auto text-xs break-words">{new Date(data.created_at).toLocaleString()}</span>
+              <span className="ml-auto text-xs">{new Date(data.created_at).toLocaleString()}</span>
             )}
           </div>
 
@@ -369,9 +369,9 @@ export default function ResponseDetail() {
                             <span className={`${muted} text-xs`}>{c.user_karma} karma</span>
                           )}
                           {isOwn && <span className={`${tag} text-xs`}>you</span>}
-                          <span className={`${muted} w-full sm:w-auto sm:ml-auto text-xs break-words`}>{new Date(c.created_at).toLocaleString()}</span>
+                          <span className={`${muted} ml-auto text-xs`}>{new Date(c.created_at).toLocaleString()}</span>
                         </div>
-                        <p className="mt-1.5 mb-0 text-sm break-words">{c.body}</p>
+                        <p className="mt-1.5 mb-0 text-sm">{c.body}</p>
                         {isOwn && (
                           <div className="flex justify-end mt-2">
                             <button
